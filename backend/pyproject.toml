@@ -22,7 +22,7 @@ plugins = ["pydantic.mypy"]
 exclude = ["alembic/versions/"]
 
 [[tool.mypy.overrides]]
-module = ["respx.*"]
+module = ["respx.*", "apscheduler.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

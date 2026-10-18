@@ -17,3 +17,11 @@ class RateLimitExceeded(ProviderError):
 
 class NoDataError(ProviderError):
     """The provider answered, but has no data for this symbol/query."""
+
+
+class SymbolNotFound(LookupError):
+    """The symbol isn't in our directory (search the seeded DB first)."""
+
+    def __init__(self, symbol: str) -> None:
+        super().__init__(f"unknown symbol {symbol}")
+        self.symbol = symbol

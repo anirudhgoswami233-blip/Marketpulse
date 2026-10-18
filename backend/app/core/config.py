@@ -35,6 +35,17 @@ class Settings(BaseSettings):
     background_budget_share: float = 0.7
     # How long a caller waits in the limiter queue before giving up and falling back to stale data.
     limiter_max_wait_s: float = 30.0
+    # Background jobs are paced by the limiter, so they may queue much longer than user requests.
+    limiter_background_max_wait_s: float = 600.0
+
+    # Scheduled jobs and the shared Finnhub WebSocket (both off in tests).
+    enable_background_jobs: bool = True
+    enable_streaming: bool = True
+    # Finnhub's free WebSocket allows 50 symbols per connection.
+    finnhub_ws_max_symbols: int = 50
+    sse_max_symbols_per_client: int = 30
+    overview_refresh_open_s: int = 300
+    overview_refresh_closed_s: int = 1800
 
     smtp_host: str = ""
     smtp_port: int = 587

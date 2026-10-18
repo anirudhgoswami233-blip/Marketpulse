@@ -1,0 +1,95 @@
+@import "tailwindcss";
+
+/* Theme is driven by data-theme on <html> (dark by default, set before paint by the inline script in layout). */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+:root,
+[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f4f4f2;
+  --surface: #fcfcfb;
+  --surface-2: #f0efec;
+  --border: #e2e1dc;
+  --text-primary: #0b0b0b;
+  --text-secondary: #52514e;
+  --text-muted: #6e6d68;
+  --accent: #1c5cab;
+  /* Gain/loss text: >= 4.5:1 on --surface, always paired with ▲/▼ and a sign. */
+  --up: #0a7a0a;
+  --down: #c62f2f;
+  --chart-line: #2a78d6;
+  --chart-fill: rgba(42, 120, 214, 0.14);
+  --chart-grid: #ecebe7;
+  /* Diverging heatmap: blue (gain) <-> red (loss) around a neutral gray. */
+  --div-up-1: #cde2fb;
+  --div-up-2: #86b6ef;
+  --div-up-3: #2a78d6;
+  --div-up-4: #1c5cab;
+  --div-down-1: #fbd5d1;
+  --div-down-2: #f29c94;
+  --div-down-3: #e34948;
+  --div-down-4: #b8322a;
+  --div-mid: #f0efec;
+  --on-div-strong: #ffffff;
+  --on-div-soft: #0b0b0b;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #121211;
+  --surface: #1a1a19;
+  --surface-2: #242422;
+  --border: #2e2e2b;
+  --text-primary: #f0efec;
+  --text-secondary: #c3c2b7;
+  --text-muted: #a3a296;
+  --accent: #6da7ec;
+  --up: #4cc94c;
+  --down: #ff7b72;
+  --chart-line: #3987e5;
+  --chart-fill: rgba(57, 135, 229, 0.18);
+  --chart-grid: #262624;
+  --div-up-1: #1f3550;
+  --div-up-2: #184f95;
+  --div-up-3: #2a78d6;
+  --div-up-4: #5598e7;
+  --div-down-1: #4a2523;
+  --div-down-2: #8f2f2c;
+  --div-down-3: #c43d3b;
+  --div-down-4: #e66767;
+  --div-mid: #383835;
+  --on-div-strong: #0b0b0b;
+  --on-div-soft: #f0efec;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-primary: var(--text-primary);
+  --color-secondary: var(--text-secondary);
+  --color-muted: var(--text-muted);
+  --color-accent: var(--accent);
+  --color-up: var(--up);
+  --color-down: var(--down);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}

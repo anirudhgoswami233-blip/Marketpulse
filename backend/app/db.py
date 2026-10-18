@@ -1,6 +1,9 @@
 from collections.abc import AsyncIterator
+from typing import Any
 
 from sqlalchemy import MetaData, event
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.engine.interfaces import DBAPIConnection
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
@@ -35,6 +38,11 @@ def create_engine(database_url: str) -> AsyncEngine:
 
 def create_session_factory(engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
     return async_sessionmaker(engine, expire_on_commit=False)
+
+
+def dialect_insert(session: AsyncSession) -> Any:
+    """`insert` for the session's dialect, so upserts can use ON CONFLICT on both SQLite and PostgreSQL."""
+    return pg_insert if session.get_bind().dialect.name == "postgresql" else sqlite_insert
 
 
 async def session_scope(factory: async_sessionmaker[AsyncSession]) -> AsyncIterator[AsyncSession]:

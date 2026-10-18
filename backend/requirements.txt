@@ -10,3 +10,5 @@ aiosqlite==0.22.1
 asyncpg==0.32.0
 redis==8.1.0
 python-dotenv==1.2.4
+apscheduler==3.11.3
+tzdata==2026.5

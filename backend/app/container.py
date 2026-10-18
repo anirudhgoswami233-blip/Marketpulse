@@ -1,4 +1,5 @@
-"""Builds and owns the app's long-lived resources: cache, limiters, HTTP clients, providers, DB engine."""
+"""Builds and owns the app's long-lived resources: cache, limiters, HTTP clients, providers, DB engine,
+and the live-price hub and shared Finnhub WebSocket."""
 
 from __future__ import annotations
 
@@ -16,6 +17,8 @@ from app.providers import finnhub, fred
 from app.providers.base import MacroDataProvider, MarketDataProvider
 from app.providers.fallback import twelvedata
 from app.providers.registry import ProviderRegistry, UnconfiguredMacroProvider, UnconfiguredProvider
+from app.ws.finnhub_stream import FinnhubStream
+from app.ws.hub import PriceHub
 
 logger = logging.getLogger(__name__)
 
@@ -28,9 +31,20 @@ class Container:
     providers: ProviderRegistry
     engine: AsyncEngine
     session_factory: async_sessionmaker[AsyncSession]
+    hub: PriceHub
+    # None when FINNHUB_API_KEY is missing or streaming is disabled: pages then show REST quotes only.
+    stream: FinnhubStream | None
     _clients: list[httpx.AsyncClient] = field(default_factory=list)
 
+    def start_streaming(self) -> None:
+        self.hub.start()
+        if self.stream is not None:
+            self.stream.start()
+
     async def close(self) -> None:
+        if self.stream is not None:
+            await self.stream.stop()
+        await self.hub.stop()
         for client in self._clients:
             await client.aclose()
         for limiter in self.limiters.values():
@@ -53,6 +67,7 @@ def build_container(settings: Settings) -> Container:
                 background_share=settings.background_budget_share,
                 daily_limit=daily,
                 max_wait_s=settings.limiter_max_wait_s,
+                background_max_wait_s=settings.limiter_background_max_wait_s,
             ),
             settings.redis_url,
         )
@@ -104,6 +119,13 @@ def build_container(settings: Settings) -> Container:
         forex_rates=fallback,
         macro=macro,
     )
+    hub = PriceHub()
+    stream = None
+    if settings.enable_streaming and settings.finnhub_api_key:
+        stream = FinnhubStream(
+            settings.finnhub_api_key.get_secret_value(), hub, max_symbols=settings.finnhub_ws_max_symbols
+        )
+
     engine = create_engine(settings.database_url)
     return Container(
         settings=settings,
@@ -112,5 +134,7 @@ def build_container(settings: Settings) -> Container:
         providers=registry,
         engine=engine,
         session_factory=create_session_factory(engine),
+        hub=hub,
+        stream=stream,
         _clients=clients,
     )

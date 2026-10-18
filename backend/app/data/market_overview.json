@@ -1,0 +1,64 @@
+{
+  "_note": "Finnhub's free tier has no index or non-US quotes, so regions are represented by US-listed ETFs that track them. They trade during US hours.",
+  "regions": [
+    {
+      "region": "Americas",
+      "exchanges": ["US", "TO"],
+      "indices": [
+        {"symbol": "SPY", "name": "S&P 500", "tracks": "S&P 500"},
+        {"symbol": "QQQ", "name": "Nasdaq 100", "tracks": "Nasdaq-100"},
+        {"symbol": "DIA", "name": "Dow Jones 30", "tracks": "Dow Jones Industrial Average"},
+        {"symbol": "IWM", "name": "Russell 2000", "tracks": "Russell 2000"},
+        {"symbol": "EWC", "name": "Canada", "tracks": "MSCI Canada"},
+        {"symbol": "EWZ", "name": "Brazil", "tracks": "MSCI Brazil"}
+      ]
+    },
+    {
+      "region": "Europe",
+      "exchanges": ["L", "DE", "PA"],
+      "indices": [
+        {"symbol": "VGK", "name": "Europe", "tracks": "FTSE Developed Europe"},
+        {"symbol": "EWU", "name": "United Kingdom", "tracks": "MSCI United Kingdom"},
+        {"symbol": "EWG", "name": "Germany", "tracks": "MSCI Germany"},
+        {"symbol": "EWQ", "name": "France", "tracks": "MSCI France"}
+      ]
+    },
+    {
+      "region": "India",
+      "exchanges": ["NS", "BO"],
+      "indices": [
+        {"symbol": "INDA", "name": "India", "tracks": "MSCI India"},
+        {"symbol": "EPI", "name": "India Earnings", "tracks": "WisdomTree India Earnings"}
+      ]
+    },
+    {
+      "region": "Asia-Pacific",
+      "exchanges": ["T", "HK", "SS", "KS", "AX"],
+      "indices": [
+        {"symbol": "EWJ", "name": "Japan", "tracks": "MSCI Japan"},
+        {"symbol": "FXI", "name": "China Large-Cap", "tracks": "FTSE China 50"},
+        {"symbol": "EWH", "name": "Hong Kong", "tracks": "MSCI Hong Kong"},
+        {"symbol": "EWY", "name": "South Korea", "tracks": "MSCI Korea"},
+        {"symbol": "EWA", "name": "Australia", "tracks": "MSCI Australia"}
+      ]
+    }
+  ],
+  "sectors": [
+    {"symbol": "XLK", "sector": "Technology"},
+    {"symbol": "XLF", "sector": "Financials"},
+    {"symbol": "XLV", "sector": "Health Care"},
+    {"symbol": "XLY", "sector": "Consumer Discretionary"},
+    {"symbol": "XLC", "sector": "Communication Services"},
+    {"symbol": "XLI", "sector": "Industrials"},
+    {"symbol": "XLP", "sector": "Consumer Staples"},
+    {"symbol": "XLE", "sector": "Energy"},
+    {"symbol": "XLU", "sector": "Utilities"},
+    {"symbol": "XLRE", "sector": "Real Estate"},
+    {"symbol": "XLB", "sector": "Materials"}
+  ],
+  "movers_universe": [
+    "AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "META", "TSLA", "AVGO", "BRK.B", "JPM",
+    "LLY", "V", "UNH", "XOM", "MA", "JNJ", "PG", "HD", "COST", "ABBV",
+    "MRK", "NFLX", "AMD", "CRM", "BAC", "KO", "PEP", "ORCL", "ADBE", "WMT"
+  ]
+}

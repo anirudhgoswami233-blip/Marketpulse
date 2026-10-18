@@ -45,9 +45,11 @@ cd backend && .venv/Scripts/ruff format . && .venv/Scripts/ruff check . && .venv
 cd backend && .venv/Scripts/alembic upgrade head
 cd backend && .venv/Scripts/python scripts/check_finnhub_endpoints.py
 cd backend && .venv/Scripts/python scripts/seed_symbols.py
-# frontend
+# frontend (copy .env.example to .env.local first)
+cd frontend && npm install
 cd frontend && npm run dev
 cd frontend && npm run lint && npm run typecheck && npm test
+cd frontend && npm run build   # also enforces Cache Components rules (uncached data must sit in <Suspense>)
 # services (optional in dev: leave REDIS_URL empty for the in-memory cache/limiter, SQLite is the default DB)
 docker compose up -d postgres redis
 ```
@@ -75,6 +77,7 @@ Update this section if commands change.
 - Money and prices: use `Decimal` in Python for portfolio math; format with locale-aware formatters in the UI. Always store currency alongside price.
 - Times: store UTC, convert to user/exchange timezone only for display. Market hours use the exchange's own timezone.
 - Every data-driven UI shows: loading skeleton, empty state, error state, and "data as of HH:MM" when cached.
+- Next.js 16 with Cache Components: read `frontend/node_modules/next/dist/docs/` before using an unfamiliar API (see `frontend/AGENTS.md`). Server components fetch inside `<Suspense>`; live prices come from one shared SSE stream per page (`LiveQuotesProvider`), never one per widget.
 
 ## Daily Market Brief — non-negotiables
 - Signals are **labels with reasons** ("Bullish signals: RSI 28 oversold, price above 200-DMA"), never bare "BUY/SELL" commands.

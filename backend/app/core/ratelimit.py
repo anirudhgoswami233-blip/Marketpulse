@@ -70,6 +70,10 @@ class LimiterConfig:
     background_share: float = 0.7
     daily_limit: int | None = None
     max_wait_s: float = 30.0
+    background_max_wait_s: float = 600.0
+
+    def max_wait_for(self, priority: Priority) -> float:
+        return self.max_wait_s if priority is Priority.INTERACTIVE else self.background_max_wait_s
 
     def allowed_for(self, priority: Priority) -> int:
         if priority is Priority.INTERACTIVE:
@@ -99,8 +103,10 @@ class MemoryRateLimiter:
 
     async def acquire(self) -> None:
         cfg = self._config
-        allowed = cfg.allowed_for(current_priority())
-        deadline = self._clock() + cfg.max_wait_s
+        priority = current_priority()
+        allowed = cfg.allowed_for(priority)
+        max_wait = cfg.max_wait_for(priority)
+        deadline = self._clock() + max_wait
         while True:
             async with self._lock:
                 now = self._clock()
@@ -114,7 +120,7 @@ class MemoryRateLimiter:
                 # Wait until enough old calls leave the window to bring us below `allowed`.
                 wait = self._calls[len(self._calls) - allowed] + cfg.window_s - now
             if now + wait > deadline:
-                raise RateLimitExceeded(cfg.name, f"limiter queue wait would exceed {cfg.max_wait_s:.0f}s")
+                raise RateLimitExceeded(cfg.name, f"limiter queue wait would exceed {max_wait:.0f}s")
             await self._sleep(max(wait, 0.001))
 
     def _check_daily_budget(self) -> None:
@@ -185,8 +191,10 @@ class RedisRateLimiter:
 
     async def acquire(self) -> None:
         cfg = self._config
-        allowed = cfg.allowed_for(current_priority())
-        deadline = time.monotonic() + cfg.max_wait_s
+        priority = current_priority()
+        allowed = cfg.allowed_for(priority)
+        max_wait = cfg.max_wait_for(priority)
+        deadline = time.monotonic() + max_wait
         while True:
             self._seq += 1
             member = f"{time.time_ns()}-{id(self)}-{self._seq}"
@@ -198,7 +206,7 @@ class RedisRateLimiter:
                 raise RateLimitExceeded(cfg.name, f"daily budget of {cfg.daily_limit} calls used")
             wait = result / 1000
             if time.monotonic() + wait > deadline:
-                raise RateLimitExceeded(cfg.name, f"limiter queue wait would exceed {cfg.max_wait_s:.0f}s")
+                raise RateLimitExceeded(cfg.name, f"limiter queue wait would exceed {max_wait:.0f}s")
             await asyncio.sleep(wait)
 
     async def usage(self) -> LimiterUsage:
