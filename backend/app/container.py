@@ -1,0 +1,116 @@
+"""Builds and owns the app's long-lived resources: cache, limiters, HTTP clients, providers, DB engine."""
+
+from __future__ import annotations
+
+import logging
+from dataclasses import dataclass, field
+
+import httpx
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
+
+from app.core.cache import CacheBackend, build_cache
+from app.core.config import Settings
+from app.core.ratelimit import LimiterConfig, RateLimiter, build_limiter
+from app.db import create_engine, create_session_factory
+from app.providers import finnhub, fred
+from app.providers.base import MacroDataProvider, MarketDataProvider
+from app.providers.fallback import twelvedata
+from app.providers.registry import ProviderRegistry, UnconfiguredMacroProvider, UnconfiguredProvider
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class Container:
+    settings: Settings
+    cache: CacheBackend
+    limiters: dict[str, RateLimiter]
+    providers: ProviderRegistry
+    engine: AsyncEngine
+    session_factory: async_sessionmaker[AsyncSession]
+    _clients: list[httpx.AsyncClient] = field(default_factory=list)
+
+    async def close(self) -> None:
+        for client in self._clients:
+            await client.aclose()
+        for limiter in self.limiters.values():
+            close = getattr(limiter, "close", None)
+            if close is not None:
+                await close()
+        await self.cache.close()
+        await self.engine.dispose()
+
+
+def build_container(settings: Settings) -> Container:
+    cache = build_cache(settings.redis_url)
+    clients: list[httpx.AsyncClient] = []
+
+    def limiter(name: str, per_minute: int, daily: int | None = None) -> RateLimiter:
+        return build_limiter(
+            LimiterConfig(
+                name=name,
+                limit=per_minute,
+                background_share=settings.background_budget_share,
+                daily_limit=daily,
+                max_wait_s=settings.limiter_max_wait_s,
+            ),
+            settings.redis_url,
+        )
+
+    limiters = {
+        "finnhub": limiter("finnhub", settings.finnhub_calls_per_minute),
+        "twelvedata": limiter(
+            "twelvedata", settings.twelvedata_calls_per_minute, settings.twelvedata_calls_per_day
+        ),
+        "fred": limiter("fred", settings.fred_calls_per_minute),
+    }
+
+    primary: MarketDataProvider
+    if settings.finnhub_api_key:
+        client = finnhub.build_client(settings.finnhub_api_key.get_secret_value())
+        clients.append(client)
+        primary = finnhub.FinnhubProvider(client, limiters["finnhub"], cache)
+    else:
+        logger.warning("FINNHUB_API_KEY is not set; market data endpoints will be unavailable")
+        primary = UnconfiguredProvider("finnhub", cache)
+
+    fallback: MarketDataProvider
+    if settings.twelvedata_api_key:
+        client = twelvedata.build_client(settings.twelvedata_api_key.get_secret_value())
+        clients.append(client)
+        fallback = twelvedata.TwelveDataProvider(client, limiters["twelvedata"], cache)
+    else:
+        logger.warning(
+            "TWELVEDATA_API_KEY is not set; charts, indicators and forex rates will be unavailable"
+        )
+        fallback = UnconfiguredProvider("twelvedata", cache)
+
+    macro: MacroDataProvider
+    if settings.fred_api_key:
+        client = fred.build_client()
+        clients.append(client)
+        macro = fred.FredProvider(client, limiters["fred"], cache, settings.fred_api_key.get_secret_value())
+    else:
+        logger.warning("FRED_API_KEY is not set; the macro dashboard will be unavailable")
+        macro = UnconfiguredMacroProvider("fred", cache)
+
+    registry = ProviderRegistry(
+        quotes=primary,
+        reference=primary,
+        news=primary,
+        calendars=primary,
+        market_status=primary,
+        history=fallback,
+        forex_rates=fallback,
+        macro=macro,
+    )
+    engine = create_engine(settings.database_url)
+    return Container(
+        settings=settings,
+        cache=cache,
+        limiters=limiters,
+        providers=registry,
+        engine=engine,
+        session_factory=create_session_factory(engine),
+        _clients=clients,
+    )
