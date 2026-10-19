@@ -1,3 +1,4 @@
+import { Analytics } from "@vercel/analytics/next";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
@@ -60,6 +61,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             information, not financial advice.
           </footer>
         </AuthProvider>
+        {/* Vercel Web Analytics: page views only, no cookies. Inert outside Vercel deployments. */}
+        <Analytics />
       </body>
     </html>
   );
