@@ -25,10 +25,10 @@ request is deferred.
   should say that prices won't show for this symbol, rather than the controls simply missing or the
   watchlist row saying "Not on our data plan" with no further context.
 
-### Open questions
-- **LLM rewrite of the Daily Brief** (optional per the spec): which provider? A `BriefWriter` hook exists
-  (`services/brief_service.py`); the template writer is the default. Waiting on the user's choice before
-  adding a provider or dependency.
+### Decisions
+- **Daily Brief text stays templated** (decided 2026-10-19). The optional LLM rewrite from the original spec
+  is skipped for now: no provider and no new dependency. The `BriefWriter` hook in
+  `services/brief_service.py` stays, so an LLM writer can be added later without touching the job.
 
 ### Phase 6
 - **Brief overnight section needs the market snapshot.** A brief generated before the overview snapshot job
