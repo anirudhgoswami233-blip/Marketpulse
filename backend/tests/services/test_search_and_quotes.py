@@ -33,6 +33,7 @@ async def seeded(session_factory: async_sessionmaker[AsyncSession]) -> async_ses
             [
                 rec("AAPL", "APPLE INC"),
                 rec("AAPLW", "APPLE WARRANT", "Warrant"),
+                rec("AAPI", "APPLE ISPORT GROUP INC"),
                 rec("APLE", "APPLE HOSPITALITY REIT INC"),
                 rec("PINE", "PINEAPPLE ENERGY"),
                 rec("A", "AGILENT TECHNOLOGIES"),
@@ -60,11 +61,9 @@ async def test_search_matches_company_names(seeded: async_sessionmaker[AsyncSess
     async with seeded() as session:
         results = await search_service.search_symbols(session, "apple")
     symbols = [s.symbol for s in results]
-    assert symbols[0] in {
-        "AAPL",
-        "APLE",
-    }  # names starting with "apple" come before names merely containing it
-    assert symbols.index("PINE") > symbols.index("APLE")
+    assert symbols[0] == "AAPL"  # the shortest matching name: the canonical company, not look-alikes
+    assert symbols.index("AAPI") > symbols.index("AAPL")
+    assert symbols.index("PINE") > symbols.index("APLE")  # names merely containing "apple" come last
 
 
 async def test_search_prefers_companies_over_funds(seeded: async_sessionmaker[AsyncSession]) -> None:

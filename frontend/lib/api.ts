@@ -3,6 +3,7 @@ import type {
   Chart,
   ChartRange,
   CompanyProfile,
+  BulkQuotes,
   Envelope,
   KeyMetrics,
   MarketOverview,
@@ -26,47 +27,68 @@ export class ApiError extends Error {
   constructor(
     message: string,
     readonly status: number,
-    readonly code: ApiErrorCode | "network" | "unknown",
+    /** Backend error code (e.g. "unavailable", "insufficient_cash"), or "network" / "unknown". */
+    readonly code: ApiErrorCode | (string & {}),
   ) {
     super(message);
     this.name = "ApiError";
   }
 
-  /** Errors worth a "Try again" button; "not on our data plan" or "not found" won't change on retry. */
+  /** Errors worth a "Try again" button: network trouble and server-side failures, but not plan limits. */
   get retryable(): boolean {
-    return this.code !== "unavailable" && this.code !== "not_found" && this.code !== "no_data";
+    if (this.code === "unavailable") return false;
+    return this.status === 0 || this.status === 429 || this.status >= 500;
   }
 }
 
 const FALLBACK_MESSAGE = "Something went wrong loading this data.";
 
-export async function apiGet<T>(path: string, init?: RequestInit): Promise<T> {
+export interface RequestOptions extends Omit<RequestInit, "body"> {
+  /** Serialized as JSON. */
+  json?: unknown;
+}
+
+export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const { json, headers, ...init } = options;
   let response: Response;
   try {
     response = await fetch(`${apiBaseUrl()}${path}`, {
       ...init,
-      headers: { Accept: "application/json", ...init?.headers },
+      body: json === undefined ? undefined : JSON.stringify(json),
+      headers: {
+        Accept: "application/json",
+        ...(json === undefined ? {} : { "Content-Type": "application/json" }),
+        ...headers,
+      },
     });
-  } catch {
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") throw error;
     throw new ApiError("We couldn't reach the MarketPulse server. Check your connection.", 0, "network");
   }
   if (!response.ok) {
     let message = FALLBACK_MESSAGE;
-    let code: ApiError["code"] = "unknown";
+    let code = "unknown";
     try {
       const body: unknown = await response.json();
       if (body && typeof body === "object") {
         const detail = (body as { detail?: unknown }).detail;
         const bodyCode = (body as { code?: unknown }).code;
         if (typeof detail === "string") message = detail;
-        if (typeof bodyCode === "string") code = bodyCode as ApiErrorCode;
+        // FastAPI's own request validation returns a list of field errors.
+        else if (Array.isArray(detail)) message = "Please check your input and try again.";
+        if (typeof bodyCode === "string") code = bodyCode;
       }
     } catch {
       // Non-JSON error body: keep the generic message.
     }
     throw new ApiError(message, response.status, code);
   }
+  if (response.status === 204) return undefined as T;
   return (await response.json()) as T;
+}
+
+export function apiGet<T>(path: string, init?: RequestInit): Promise<T> {
+  return apiRequest<T>(path, init);
 }
 
 const enc = encodeURIComponent;
@@ -80,6 +102,8 @@ export const api = {
   profile: (symbol: string) => apiGet<Envelope<CompanyProfile>>(`/api/v1/stocks/${enc(symbol)}/profile`),
   metrics: (symbol: string) => apiGet<Envelope<KeyMetrics>>(`/api/v1/stocks/${enc(symbol)}/metrics`),
   news: (symbol: string) => apiGet<Envelope<NewsItem[]>>(`/api/v1/stocks/${enc(symbol)}/news`),
+  quotes: (symbols: string[], init?: RequestInit) =>
+    apiGet<BulkQuotes>(`/api/v1/quotes?symbols=${symbols.map(enc).join(",")}`, init),
   chart: (symbol: string, range: ChartRange, init?: RequestInit) =>
     apiGet<Envelope<Chart>>(`/api/v1/stocks/${enc(symbol)}/chart?range=${range}`, init),
 };

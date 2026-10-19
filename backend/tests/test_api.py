@@ -1,10 +1,8 @@
 import asyncio
-import dataclasses
 import json
 from collections.abc import Iterator
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
@@ -13,71 +11,12 @@ from pydantic import SecretStr
 import app.models  # noqa: F401
 from app.api import stream as stream_api
 from app.container import Container
-from app.core.config import Settings
 from app.core.errors import ProviderUnavailable
-from app.db import Base
 from app.main import create_app
-from app.providers.base import SymbolRecord
-from app.services import symbol_directory
 from app.ws.hub import Trade
+from tests.api_helpers import make_settings, prepare
 from tests.conftest import FAKE_FINNHUB_KEY
 from tests.fakes import FakeProvider, make_quote
-
-
-def make_settings(**overrides: Any) -> Settings:
-    return Settings(
-        _env_file=None,
-        database_url="sqlite+aiosqlite:///:memory:",
-        enable_background_jobs=False,
-        enable_streaming=False,
-        **overrides,
-    )
-
-
-async def _prepare(container: Container, provider: FakeProvider) -> None:
-    async with container.engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    async with container.session_factory() as session:
-        await symbol_directory.upsert_exchanges(session, symbol_directory.load_exchange_rows())
-        await symbol_directory.upsert_symbols(
-            session,
-            "US",
-            [
-                SymbolRecord(
-                    symbol="AAPL",
-                    display_symbol="AAPL",
-                    description="APPLE INC",
-                    type="Common Stock",
-                    currency="USD",
-                    mic="XNAS",
-                    figi=None,
-                )
-            ],
-        )
-        await symbol_directory.upsert_symbols(
-            session,
-            "L",
-            [
-                SymbolRecord(
-                    symbol="VOD",
-                    display_symbol="VOD",
-                    description="VODAFONE",
-                    type="Common Stock",
-                    currency="GBP",
-                    mic="XLON",
-                    figi=None,
-                )
-            ],
-        )
-        await session.commit()
-    container.providers = dataclasses.replace(
-        container.providers,
-        quotes=provider,
-        reference=provider,
-        news=provider,
-        market_status=provider,
-        history=provider,
-    )
 
 
 @pytest.fixture
@@ -90,7 +29,7 @@ def client(provider: FakeProvider) -> Iterator[TestClient]:
     with TestClient(create_app(make_settings())) as test_client:
         container: Container = test_client.app.state.container  # type: ignore[attr-defined]
         assert test_client.portal is not None
-        test_client.portal.call(_prepare, container, provider)
+        test_client.portal.call(prepare, container, provider)
         yield test_client
 
 

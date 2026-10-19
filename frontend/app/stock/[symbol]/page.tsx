@@ -3,6 +3,7 @@ import { Suspense } from "react";
 
 import { PriceChart } from "@/components/stock/PriceChart";
 import { CompanyProfileCard, KeyStats, NewsList } from "@/components/stock/StockDetails";
+import { StockActions } from "@/components/stock/StockActions";
 import { LiveQuote } from "@/components/stock/StockHeader";
 import { Card, EmptyState, Skeleton, SkeletonBlock } from "@/components/ui/primitives";
 import { ErrorState, StaleBadge } from "@/components/ui/status";
@@ -98,7 +99,14 @@ async function StockContent({ params }: { params: PageProps<"/stock/[symbol]">["
 
 async function QuoteSection({ stock }: { stock: SymbolInfo }) {
   if (!stock.price_available) {
-    return <p className="text-sm text-secondary">Live prices for {stock.exchange} listings aren&apos;t on our current data plan.</p>;
+    return (
+      <div className="space-y-3">
+        <p className="text-sm text-secondary">
+          Live prices for {stock.exchange} listings aren&apos;t on our current data plan.
+        </p>
+        <StockActions info={stock} price={null} currency={stock.currency} />
+      </div>
+    );
   }
   const quote = await settle(api.quote(stock.symbol));
   if (quote.error) return <ErrorState message={quote.error.message} retryable={quote.error.retryable} />;

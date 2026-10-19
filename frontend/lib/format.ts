@@ -27,6 +27,21 @@ export function formatPrice(value: string | number | null | undefined, currency?
   return new Intl.NumberFormat(LOCALE, { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(n);
 }
 
+/** Money amounts (cash, equity, P&L, order totals): always 2 decimals, unlike share prices. */
+export function formatMoney(value: string | number | null | undefined, currency?: string | null): string {
+  const n = toNumber(value);
+  if (n === null) return "—";
+  const options: Intl.NumberFormatOptions = { minimumFractionDigits: 2, maximumFractionDigits: 2 };
+  if (currency) {
+    try {
+      return new Intl.NumberFormat(LOCALE, { ...options, style: "currency", currency }).format(n);
+    } catch {
+      // Unknown currency code: fall through to a plain number.
+    }
+  }
+  return new Intl.NumberFormat(LOCALE, options).format(n);
+}
+
 /** Signed change, e.g. "+1.46" or "−0.32". */
 export function formatChange(value: string | number | null | undefined): string {
   const n = toNumber(value);

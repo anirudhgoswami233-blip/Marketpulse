@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { rangeChange, toChartPoints, tzOffsetSeconds } from "@/lib/chart";
-import { direction, formatChange, formatCompact, formatCountdown, formatPct, formatPrice } from "@/lib/format";
+import { direction, formatChange, formatCompact, formatCountdown, formatMoney, formatPct, formatPrice } from "@/lib/format";
 import { mergeLiveTrade } from "@/lib/quotes";
 import type { Bar, Quote } from "@/types/api";
 
@@ -97,5 +97,13 @@ describe("chart helpers", () => {
   it("computes the change across a range", () => {
     expect(rangeChange([bar("a", "100"), bar("b", "110")])).toEqual({ change: 10, changePct: 10 });
     expect(rangeChange([bar("a", "100")])).toBeNull();
+  });
+});
+
+describe("formatMoney", () => {
+  it("always uses two decimals, even for small amounts", () => {
+    expect(formatMoney("0", "USD")).toMatch(/0\.00$/);
+    expect(formatMoney("0.5", "USD")).toMatch(/0\.50$/);
+    expect(formatMoney("100000", "USD")).toContain("100,000.00");
   });
 });

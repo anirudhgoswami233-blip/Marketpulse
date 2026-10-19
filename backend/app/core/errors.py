@@ -25,3 +25,41 @@ class SymbolNotFound(LookupError):
     def __init__(self, symbol: str) -> None:
         super().__init__(f"unknown symbol {symbol}")
         self.symbol = symbol
+
+
+class AppError(Exception):
+    """A user-facing domain error. The API returns `{detail, code}` with `status`.
+
+    `message` is shown to users as-is, so keep it friendly and free of internals.
+    """
+
+    status: int = 400
+    code: str = "bad_request"
+
+    def __init__(self, message: str, *, code: str | None = None, status: int | None = None) -> None:
+        super().__init__(message)
+        self.message = message
+        if code is not None:
+            self.code = code
+        if status is not None:
+            self.status = status
+
+
+class NotFound(AppError):
+    status, code = 404, "not_found"
+
+
+class Conflict(AppError):
+    status, code = 409, "conflict"
+
+
+class Unauthorized(AppError):
+    status, code = 401, "unauthorized"
+
+
+class TooManyRequests(AppError):
+    status, code = 429, "too_many_requests"
+
+
+class ValidationFailed(AppError):
+    status, code = 422, "invalid"

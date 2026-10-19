@@ -1,5 +1,6 @@
 "use client";
 
+import { StockActions } from "@/components/stock/StockActions";
 import { ChangeText } from "@/components/ui/primitives";
 import { LocalTime, StaleBadge } from "@/components/ui/status";
 import { formatPrice } from "@/lib/format";
@@ -31,6 +32,9 @@ export function LiveQuote({ info, quote }: { info: SymbolInfo; quote: Envelope<Q
           </span>
         )}
         <StaleBadge asOf={quote.as_of} stale={quote.stale} />
+      </div>
+      <div className="mt-3">
+        <StockActions info={info} price={display.price} currency={currency} />
       </div>
     </div>
   );

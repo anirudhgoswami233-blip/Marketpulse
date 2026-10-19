@@ -1,9 +1,13 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
+import { Suspense } from "react";
 
+import { AuthNav } from "@/components/auth/AuthNav";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { SearchBox } from "@/components/search/SearchBox";
+import { Skeleton } from "@/components/ui/primitives";
+import { AuthProvider } from "@/lib/auth";
 import { themeInitScript } from "@/lib/theme";
 
 import "./globals.css";
@@ -27,28 +31,41 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
       <body className="flex min-h-full flex-col">
-        <header className="sticky top-0 z-30 border-b border-border bg-bg/90 backdrop-blur">
-          <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-3 px-4 py-3">
-            <Link href="/" className="text-lg font-bold tracking-tight text-primary">
-              Market<span className="text-accent">Pulse</span>
-            </Link>
-            <nav aria-label="Main" className="flex gap-4 text-sm text-secondary">
-              <Link href="/" className="hover:text-primary">
-                Markets
+        <AuthProvider>
+          <header className="sticky top-0 z-30 border-b border-border bg-bg/90 backdrop-blur">
+            <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-3 px-4 py-3">
+              <Link href="/" className="text-lg font-bold tracking-tight text-primary">
+                Market<span className="text-accent">Pulse</span>
               </Link>
-            </nav>
-            <div className="order-last w-full sm:order-none sm:ml-auto sm:w-auto sm:flex-1 sm:justify-end sm:flex">
-              <SearchBox />
+              <nav aria-label="Main" className="flex gap-4 text-sm text-secondary">
+                <Link href="/" className="hover:text-primary">
+                  Markets
+                </Link>
+                <Link href="/watchlists" className="hover:text-primary">
+                  Watchlists
+                </Link>
+                <Link href="/portfolio" className="hover:text-primary">
+                  Portfolio
+                </Link>
+              </nav>
+              <div className="order-last w-full sm:order-none sm:ml-auto sm:flex sm:w-auto sm:flex-1 sm:justify-end">
+                <SearchBox />
+              </div>
+              <div className="ml-auto flex items-center gap-2 sm:ml-0">
+                <ThemeToggle />
+                {/* AuthNav reads the current path (for ?next=), which is request-time data on dynamic routes. */}
+                <Suspense fallback={<Skeleton className="h-8 w-20" />}>
+                  <AuthNav />
+                </Suspense>
+              </div>
             </div>
-            <div className="ml-auto sm:ml-0">
-              <ThemeToggle />
-            </div>
-          </div>
-        </header>
-        <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6">{children}</main>
-        <footer className="border-t border-border px-4 py-4 text-center text-xs text-muted">
-          Market data from Finnhub and Twelve Data; may be delayed. Educational information, not financial advice.
-        </footer>
+          </header>
+          <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6">{children}</main>
+          <footer className="border-t border-border px-4 py-4 text-center text-xs text-muted">
+            Market data from Finnhub and Twelve Data; may be delayed. Paper trading uses virtual money. Educational
+            information, not financial advice.
+          </footer>
+        </AuthProvider>
       </body>
     </html>
   );

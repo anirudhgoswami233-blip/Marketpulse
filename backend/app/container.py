@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from app.core.cache import CacheBackend, build_cache
 from app.core.config import Settings
 from app.core.ratelimit import LimiterConfig, RateLimiter, build_limiter
+from app.core.security import TokenSigner, build_signer
 from app.db import create_engine, create_session_factory
 from app.providers import finnhub, fred
 from app.providers.base import MacroDataProvider, MarketDataProvider
@@ -32,6 +33,7 @@ class Container:
     engine: AsyncEngine
     session_factory: async_sessionmaker[AsyncSession]
     hub: PriceHub
+    signer: TokenSigner
     # None when FINNHUB_API_KEY is missing or streaming is disabled: pages then show REST quotes only.
     stream: FinnhubStream | None
     _clients: list[httpx.AsyncClient] = field(default_factory=list)
@@ -135,6 +137,7 @@ def build_container(settings: Settings) -> Container:
         engine=engine,
         session_factory=create_session_factory(engine),
         hub=hub,
+        signer=build_signer(settings),
         stream=stream,
         _clients=clients,
     )

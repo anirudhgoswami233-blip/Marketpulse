@@ -69,6 +69,8 @@ Update this section if commands change.
 - All keys live in `.env` (gitignored). Keep `.env.example` updated with every new variable.
 - Vars: `FINNHUB_API_KEY`, `TWELVEDATA_API_KEY`, `FRED_API_KEY`, `DATABASE_URL`, `REDIS_URL`, `JWT_SECRET`, optional `LLM_API_KEY`, `SMTP_*`.
 - Never log, print, commit, or return an API key in a response. Never put keys in frontend code or `NEXT_PUBLIC_*` vars.
+- **Auth model:** 15-min JWT access token kept in memory only (never localStorage); rotating opaque refresh token in an httpOnly SameSite=Lax cookie scoped to `/api/v1/auth`, stored hashed. Reuse of a rotated token >30s after rotation revokes all the user's sessions. Protected routes use the `CurrentUser` dependency; every watchlist/portfolio query is scoped to the owner (other users' resources return 404).
+- **Paper trading:** Decimal math in `services/portfolio_math.py` (pure). Orders use optimistic concurrency on `portfolios.version` (works on SQLite and Postgres); refuse orders on stale quotes. After `session.rollback()` re-load objects explicitly (`await session.refresh(...)`): lazy loads crash in async code.
 
 ## Coding conventions
 - **Python:** type hints everywhere, Pydantic for all I/O, async I/O (`httpx.AsyncClient`), format with `ruff format`, lint with `ruff check`.

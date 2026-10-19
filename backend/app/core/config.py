@@ -1,3 +1,4 @@
+from decimal import Decimal
 from functools import lru_cache
 from pathlib import Path
 
@@ -46,6 +47,22 @@ class Settings(BaseSettings):
     sse_max_symbols_per_client: int = 30
     overview_refresh_open_s: int = 300
     overview_refresh_closed_s: int = 1800
+
+    # Auth: short-lived JWT access tokens, rotating opaque refresh tokens in an httpOnly cookie.
+    access_token_ttl_s: int = 15 * 60
+    refresh_token_ttl_days: int = 30
+    # A token rotated this recently is a benign race (two tabs refreshing at once), not a stolen token.
+    refresh_reuse_grace_s: int = 30
+    # Set true behind HTTPS in production so the refresh cookie is never sent over plain HTTP.
+    cookie_secure: bool = False
+    login_max_failures: int = 5
+    login_lockout_s: int = 15 * 60
+
+    # Paper trading
+    paper_starting_cash: Decimal = Decimal("100000")
+    paper_base_currency: str = "USD"
+    max_watchlists_per_user: int = 10
+    max_watchlist_items: int = 50
 
     smtp_host: str = ""
     smtp_port: int = 587

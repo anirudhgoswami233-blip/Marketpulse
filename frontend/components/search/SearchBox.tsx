@@ -13,7 +13,21 @@ type Result = { kind: "results"; results: SymbolInfo[] } | { kind: "error"; mess
 type State = { kind: "idle" } | { kind: "loading" } | Result;
 
 /** Header search: queries our symbol directory (never the data provider) as you type. */
-export function SearchBox({ autoFocus = false }: { autoFocus?: boolean }) {
+/**
+ * Header search: queries our symbol directory (never the data provider) as you type. By default picking a
+ * result opens its stock page; pass `onSelect` to use it as a picker instead (e.g. "add to watchlist").
+ */
+export function SearchBox({
+  autoFocus = false,
+  onSelect,
+  placeholder = "Search symbol or company…",
+  label = "Search stocks, ETFs and forex pairs",
+}: {
+  autoFocus?: boolean;
+  onSelect?: (symbol: SymbolInfo) => void;
+  placeholder?: string;
+  label?: string;
+}) {
   const router = useRouter();
   const listId = useId();
   const [query, setQuery] = useState("");
@@ -60,7 +74,8 @@ export function SearchBox({ autoFocus = false }: { autoFocus?: boolean }) {
   const go = (symbol: SymbolInfo) => {
     setOpen(false);
     setQuery("");
-    router.push(`/stock/${encodeURIComponent(symbol.symbol)}`);
+    if (onSelect) onSelect(symbol);
+    else router.push(`/stock/${encodeURIComponent(symbol.symbol)}`);
   };
 
   const onKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
@@ -74,7 +89,7 @@ export function SearchBox({ autoFocus = false }: { autoFocus?: boolean }) {
     } else if (event.key === "Enter") {
       event.preventDefault();
       if (active >= 0 && results[active]) go(results[active]);
-      else if (query.trim()) {
+      else if (query.trim() && !onSelect) {
         setOpen(false);
         router.push(`/search?q=${encodeURIComponent(query.trim())}`);
       }
@@ -91,8 +106,8 @@ export function SearchBox({ autoFocus = false }: { autoFocus?: boolean }) {
         aria-expanded={open && query.trim().length > 0}
         aria-controls={listId}
         aria-activedescendant={active >= 0 ? `${listId}-${active}` : undefined}
-        aria-label="Search stocks, ETFs and forex pairs"
-        placeholder="Search symbol or company…"
+        aria-label={label}
+        placeholder={placeholder}
         autoFocus={autoFocus}
         value={query}
         onChange={(event) => {
@@ -129,30 +144,45 @@ export function SearchBox({ autoFocus = false }: { autoFocus?: boolean }) {
           {state.kind === "results" && results.length === 0 && (
             <div className="px-3 py-3 text-sm text-secondary">No matches for “{query.trim()}”.</div>
           )}
-          {results.map((item, index) => (
-            <Link
-              key={`${item.symbol}-${item.exchange}`}
-              id={`${listId}-${index}`}
-              role="option"
-              aria-selected={index === active}
-              href={`/stock/${encodeURIComponent(item.symbol)}`}
-              onClick={() => {
-                setOpen(false);
-                setQuery("");
-              }}
-              className={`flex items-center justify-between gap-3 px-3 py-2 text-sm ${
-                index === active ? "bg-surface-2" : "hover:bg-surface-2"
-              }`}
-            >
-              <span className="min-w-0">
-                <span className="font-semibold text-primary">{item.display_symbol}</span>{" "}
-                <span className="truncate text-secondary">{item.description}</span>
-              </span>
-              <span className="shrink-0 text-xs text-muted">
-                {item.exchange} · {item.type || "—"}
-              </span>
-            </Link>
-          ))}
+          {results.map((item, index) => {
+            const className = `flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm ${
+              index === active ? "bg-surface-2" : "hover:bg-surface-2"
+            }`;
+            const content = (
+              <>
+                <span className="min-w-0">
+                  <span className="font-semibold text-primary">{item.display_symbol}</span>{" "}
+                  <span className="truncate text-secondary">{item.description}</span>
+                </span>
+                <span className="shrink-0 text-xs text-muted">
+                  {item.exchange} · {item.type || "—"}
+                </span>
+              </>
+            );
+            const common = {
+              id: `${listId}-${index}`,
+              role: "option" as const,
+              "aria-selected": index === active,
+              className,
+            };
+            return onSelect ? (
+              <button key={`${item.symbol}-${item.exchange}`} type="button" {...common} onClick={() => go(item)}>
+                {content}
+              </button>
+            ) : (
+              <Link
+                key={`${item.symbol}-${item.exchange}`}
+                {...common}
+                href={`/stock/${encodeURIComponent(item.symbol)}`}
+                onClick={() => {
+                  setOpen(false);
+                  setQuery("");
+                }}
+              >
+                {content}
+              </Link>
+            );
+          })}
         </div>
       )}
     </div>

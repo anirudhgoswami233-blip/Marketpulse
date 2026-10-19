@@ -36,6 +36,12 @@ async def search_symbols(session: AsyncSession, query: str, limit: int = 20) -> 
         (description.startswith(lower, autoescape=True), 2),
         else_=3,
     )
+    # Ticker matches: shortest ticker first. Name matches: shortest name first, since the canonical company
+    # ("APPLE INC") is usually shorter than look-alikes ("APPLE ISPORT GROUP INC").
+    closeness = case(
+        (Symbol.symbol.startswith(upper, autoescape=True), func.length(Symbol.symbol)),
+        else_=func.length(Symbol.description),
+    )
     type_rank = case(*((Symbol.type == t, p) for t, p in TYPE_PRIORITY.items()), else_=2)
     stmt = (
         select(Symbol)
@@ -47,7 +53,7 @@ async def search_symbols(session: AsyncSession, query: str, limit: int = 20) -> 
                 description.contains(lower, autoescape=True),
             ),
         )
-        .order_by(rank, type_rank, func.length(Symbol.symbol), Symbol.symbol)
+        .order_by(rank, type_rank, closeness, Symbol.symbol)
         .limit(limit)
     )
     return list((await session.execute(stmt)).scalars().all())

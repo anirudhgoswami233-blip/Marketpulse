@@ -6,10 +6,17 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api import markets, stocks, stream, system
+from app.api import auth, markets, portfolio, stocks, stream, system
 from app.container import build_container
 from app.core.config import Settings, get_settings
-from app.core.errors import NoDataError, ProviderError, ProviderUnavailable, RateLimitExceeded, SymbolNotFound
+from app.core.errors import (
+    AppError,
+    NoDataError,
+    ProviderError,
+    ProviderUnavailable,
+    RateLimitExceeded,
+    SymbolNotFound,
+)
 from app.core.logging import configure_logging
 from app.jobs.scheduler import build_scheduler
 
@@ -47,6 +54,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(markets.router)
     app.include_router(stocks.router)
     app.include_router(stream.router)
+    app.include_router(auth.router)
+    app.include_router(portfolio.router)
+
+    @app.exception_handler(AppError)
+    async def app_error_handler(request: Request, exc: AppError) -> JSONResponse:
+        return JSONResponse(status_code=exc.status, content={"detail": exc.message, "code": exc.code})
 
     @app.exception_handler(SymbolNotFound)
     async def symbol_not_found_handler(request: Request, exc: SymbolNotFound) -> JSONResponse:

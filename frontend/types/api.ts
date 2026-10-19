@@ -176,3 +176,88 @@ export interface StreamReady {
   unavailable: string[];
   streaming_enabled: boolean;
 }
+
+// --- accounts, watchlists, paper trading -------------------------------------------------------------
+
+export interface User {
+  id: number;
+  email: string;
+  display_name: string;
+  timezone: string;
+  base_currency: string;
+  brief_time: string;
+  brief_email_enabled: boolean;
+  created_at: IsoDateTime;
+}
+
+export interface TokenResponse {
+  access_token: string;
+  token_type: "bearer";
+  expires_at: IsoDateTime;
+  user: User;
+}
+
+export interface Watchlist {
+  id: number;
+  name: string;
+  created_at: IsoDateTime;
+  symbols: SymbolInfo[];
+}
+
+export interface QuoteResult {
+  symbol: string;
+  quote: Envelope<Quote> | null;
+  error: "unavailable" | "not_found" | "provider_error" | null;
+}
+
+export interface BulkQuotes {
+  results: QuoteResult[];
+}
+
+export type OrderSide = "buy" | "sell";
+
+export interface Trade {
+  id: number;
+  symbol: string;
+  display_symbol: string;
+  side: OrderSide;
+  quantity: DecimalString;
+  price: DecimalString;
+  currency: string;
+  notional: DecimalString;
+  realized_pnl: DecimalString | null;
+  executed_at: IsoDateTime;
+  price_as_of: IsoDateTime;
+}
+
+export interface Position {
+  symbol: string;
+  display_symbol: string;
+  description: string;
+  quantity: DecimalString;
+  avg_cost: DecimalString;
+  currency: string;
+  last_price: DecimalString | null;
+  price_as_of: IsoDateTime | null;
+  price_stale: boolean;
+  market_value: DecimalString | null;
+  cost_basis: DecimalString;
+  unrealized_pnl: DecimalString | null;
+  unrealized_pnl_pct: DecimalString | null;
+}
+
+export interface Portfolio {
+  id: number;
+  name: string;
+  base_currency: string;
+  starting_cash: DecimalString;
+  cash: DecimalString;
+  market_value: DecimalString;
+  equity: DecimalString;
+  total_return: DecimalString;
+  total_return_pct: DecimalString | null;
+  realized_pnl: DecimalString;
+  positions: Position[];
+  incomplete: boolean;
+  as_of: IsoDateTime;
+}
