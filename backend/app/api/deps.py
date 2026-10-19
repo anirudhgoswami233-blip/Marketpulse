@@ -58,3 +58,19 @@ async def get_current_user(
 
 
 CurrentUser = Annotated[User, Depends(get_current_user)]
+
+
+async def get_optional_user_id(
+    container: ContainerDep,
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)],
+) -> int | None:
+    if credentials is None:
+        return None
+    try:
+        return container.signer.decode_access_token(credentials.credentials)
+    except InvalidToken as exc:
+        raise Unauthorized("Your session has expired.", code="token_expired") from exc
+
+
+# Signed-in user's id when a valid token is sent, else None (for pages that work either way).
+OptionalUserId = Annotated[int | None, Depends(get_optional_user_id)]

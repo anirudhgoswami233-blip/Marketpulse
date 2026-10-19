@@ -48,6 +48,8 @@ async function StockContent({ params }: { params: PageProps<"/stock/[symbol]">["
     return <ErrorState message={info.error.message} retryable={info.error.retryable} />;
   }
   const stock = info.data;
+  // Forex pairs and metals have no company behind them: no profile, metrics or company news to fetch.
+  const isCompany = stock.type !== "Forex";
 
   return (
     <div className="space-y-6">
@@ -66,21 +68,21 @@ async function StockContent({ params }: { params: PageProps<"/stock/[symbol]">["
         </div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
+      <div className={`grid gap-4 ${isCompany ? "lg:grid-cols-[2fr_1fr]" : ""}`}>
         <Card title="Price chart">
           {stock.price_available ? (
             <PriceChart symbol={stock.symbol} currency={stock.currency} />
           ) : (
-            <EmptyState title="Charts aren't available for this exchange">
-              Our current data plan covers prices for US-listed securities only.
-            </EmptyState>
+            <EmptyState title="No chart for this symbol">{stock.price_note}</EmptyState>
           )}
         </Card>
-        <Card title="Company profile">
-          <Suspense fallback={<SkeletonBlock lines={6} label="Loading profile" />}>
-            <ProfileSection symbol={stock.symbol} />
-          </Suspense>
-        </Card>
+        {isCompany && (
+          <Card title="Company profile">
+            <Suspense fallback={<SkeletonBlock lines={6} label="Loading profile" />}>
+              <ProfileSection symbol={stock.symbol} />
+            </Suspense>
+          </Card>
+        )}
       </div>
 
       <Card title="Technical signals">
@@ -89,38 +91,48 @@ async function StockContent({ params }: { params: PageProps<"/stock/[symbol]">["
             <SignalSection symbol={stock.symbol} />
           </Suspense>
         ) : (
-          <EmptyState title="Signals aren't available for this exchange">
-            Signals are computed from daily price history, which our data plan covers for US-listed securities only.
+          <EmptyState title="No signals for this symbol">
+            Signals are computed from daily price history. {stock.price_note}
           </EmptyState>
         )}
       </Card>
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
-        <Card title="Key statistics">
-          <Suspense fallback={<SkeletonBlock lines={6} label="Loading statistics" />}>
-            <StatsSection stock={stock} />
-          </Suspense>
+      {isCompany ? (
+        <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
+          <Card title="Key statistics">
+            <Suspense fallback={<SkeletonBlock lines={6} label="Loading statistics" />}>
+              <StatsSection stock={stock} />
+            </Suspense>
+          </Card>
+          <Card title="Latest news">
+            <Suspense fallback={<SkeletonBlock lines={8} label="Loading news" />}>
+              <NewsSection symbol={stock.symbol} />
+            </Suspense>
+          </Card>
+        </div>
+      ) : (
+        <Card title="About this rate">
+          <p className="max-w-2xl text-sm text-secondary">
+            {stock.description}.{" "}
+            {stock.price_available
+              ? `Quotes come from Twelve Data and are delayed up to ${stock.quote_delay_min ?? 5} minutes; there's no live stream for forex or metals on our data plan.`
+              : stock.price_note}{" "}
+            Compare currencies on the{" "}
+            <Link href="/forex" className="text-accent hover:underline">
+              Forex page
+            </Link>
+            .
+          </p>
         </Card>
-        <Card title="Latest news">
-          <Suspense fallback={<SkeletonBlock lines={8} label="Loading news" />}>
-            <NewsSection symbol={stock.symbol} />
-          </Suspense>
-        </Card>
-      </div>
+      )}
     </div>
   );
 }
 
 async function QuoteSection({ stock }: { stock: SymbolInfo }) {
   if (!stock.price_available) {
-    return (
-      <div className="space-y-3">
-        <p className="text-sm text-secondary">
-          Live prices for {stock.exchange} listings aren&apos;t on our current data plan.
-        </p>
-        <StockActions info={stock} price={null} currency={stock.currency} />
-      </div>
-    );
+    // StockActions shows the price note next to the watchlist control.
+    return <StockActions info={stock} price={null} currency={stock.currency} />;
   }
   const quote = await settle(api.quote(stock.symbol));
   if (quote.error) return <ErrorState message={quote.error.message} retryable={quote.error.retryable} />;

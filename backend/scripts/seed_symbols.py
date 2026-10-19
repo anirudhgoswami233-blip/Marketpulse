@@ -3,6 +3,7 @@
 Usage (from backend/, after `alembic upgrade head`):
     .venv/Scripts/python scripts/seed_symbols.py                 # US stocks + OANDA forex pairs
     .venv/Scripts/python scripts/seed_symbols.py --exchange US --exchange L
+    .venv/Scripts/python scripts/seed_symbols.py --extras-only   # just the extra forex pairs, no API calls
 
 Exchanges that the Finnhub free tier doesn't serve (see docs/finnhub-endpoints.md) are skipped with a warning.
 """
@@ -28,10 +29,10 @@ from app.services import symbol_directory
 logger = logging.getLogger("seed_symbols")
 
 
-async def seed(exchanges: list[str], include_forex: bool) -> int:
+async def seed(exchanges: list[str], include_forex: bool, extras_only: bool = False) -> int:
     settings = get_settings()
     configure_logging(settings.log_level, settings.secret_values())
-    if settings.finnhub_api_key is None:
+    if settings.finnhub_api_key is None and not extras_only:
         logger.error("FINNHUB_API_KEY is not set in backend/.env")
         return 1
 
@@ -50,7 +51,7 @@ async def seed(exchanges: list[str], include_forex: bool) -> int:
                 return 1
             logger.info("Upserted %d exchanges", count)
 
-            for code in exchanges:
+            for code in [] if extras_only else exchanges:
                 try:
                     fetched = await provider.list_symbols(code)
                 except ProviderUnavailable:
@@ -65,6 +66,14 @@ async def seed(exchanges: list[str], include_forex: bool) -> int:
                 logger.info("Upserted %d symbols for %s", count, code)
 
             if include_forex:
+                extra = symbol_directory.extra_pair_records()
+                count = await symbol_directory.upsert_symbols(
+                    session, symbol_directory.EXTRA_FX_EXCHANGE, extra
+                )
+                await session.commit()
+                logger.info("Upserted %d extra forex pairs (no API call)", count)
+                if extras_only:
+                    return 0
                 try:
                     forex = await provider.list_forex_symbols("oanda")
                 except ProviderError as exc:
@@ -88,8 +97,15 @@ def main() -> int:
     )
     parser.add_argument("--exchange", action="append", help="Finnhub exchange code (repeatable). Default: US")
     parser.add_argument("--no-forex", action="store_true", help="Skip OANDA forex pairs")
+    parser.add_argument(
+        "--extras-only",
+        action="store_true",
+        help="Only upsert exchanges and the extra forex pairs from app/data/forex.json (no API calls)",
+    )
     args = parser.parse_args()
-    return asyncio.run(seed(args.exchange or ["US"], include_forex=not args.no_forex))
+    return asyncio.run(
+        seed(args.exchange or ["US"], include_forex=not args.no_forex, extras_only=args.extras_only)
+    )
 
 
 if __name__ == "__main__":

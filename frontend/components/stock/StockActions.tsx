@@ -23,15 +23,41 @@ export function StockActions({ info, price, currency }: { info: SymbolInfo; pric
         <Link href={`/login?next=${encodeURIComponent(pathname ?? "/")}`} className="text-accent hover:underline">
           Sign in
         </Link>{" "}
-        to add {info.display_symbol} to a watchlist or practise trading it.
+        to add {info.display_symbol} to a watchlist{info.tradable ? " or practise trading it" : ""}.
       </p>
     );
   }
   return (
-    <div className="flex flex-wrap items-start gap-3">
-      <AddToWatchlist info={info} />
-      {info.price_available && <TradePanel info={info} price={price} currency={currency ?? info.currency ?? "USD"} />}
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-start gap-3">
+        <AddToWatchlist info={info} />
+        {info.tradable ? (
+          <TradePanel info={info} price={price} currency={currency ?? info.currency ?? "USD"} />
+        ) : (
+          info.trade_note &&
+          info.trade_note !== info.price_note && (
+            <p className="max-w-sm rounded-md bg-surface-2 px-3 py-1.5 text-xs text-secondary">
+              <span className="font-medium text-primary">No paper trading: </span>
+              {info.trade_note}
+            </p>
+          )
+        )}
+      </div>
+      {info.price_note && <NoPriceNote note={info.price_note} />}
     </div>
+  );
+}
+
+/** Shown wherever actions are offered for a symbol we can't price, so the empty price isn't a surprise. */
+export function NoPriceNote({ note }: { note: string }) {
+  return (
+    <p className="flex max-w-xl gap-2 rounded-md bg-surface-2 px-3 py-2 text-xs text-secondary" role="note">
+      <span aria-hidden>ⓘ</span>
+      <span>
+        {note} You can still add it to a watchlist to keep it in view; its row will say the price isn&apos;t
+        available.
+      </span>
+    </p>
   );
 }
 

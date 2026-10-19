@@ -7,13 +7,18 @@ from datetime import UTC, date, datetime
 from decimal import Decimal
 
 from app.core.cache import Fetched, MemoryCache
-from app.core.errors import ProviderUnavailable
+from app.core.errors import ProviderError, ProviderUnavailable
 from app.core.ratelimit import Priority, current_priority
 from app.providers.base import (
     Bar,
     Bars,
     CompanyProfile,
+    EarningsEvent,
     Interval,
+    IpoEvent,
+    MacroDataProvider,
+    MacroObservation,
+    MacroSeries,
     MarketDataProvider,
     MarketSession,
     MarketStatus,
@@ -68,6 +73,9 @@ class FakeProvider(MarketDataProvider):
         self.news: list[NewsItem] = []
         self.news_error: Exception | None = None
         self.news_calls = 0
+        self.earnings: list[EarningsEvent] = []
+        self.ipos: list[IpoEvent] = []
+        self.calendar_calls: list[tuple[str, date, date]] = []
         self.as_of = NOW
 
     def _wrap[T](self, data: T) -> Fetched[T]:
@@ -106,6 +114,14 @@ class FakeProvider(MarketDataProvider):
         if self.news_error is not None:
             raise self.news_error
         return self._wrap(self.news)
+
+    async def get_earnings_calendar(self, start: date, end: date) -> Fetched[list[EarningsEvent]]:
+        self.calendar_calls.append(("earnings", start, end))
+        return self._wrap([e for e in self.earnings if start <= e.date <= end])
+
+    async def get_ipo_calendar(self, start: date, end: date) -> Fetched[list[IpoEvent]]:
+        self.calendar_calls.append(("ipo", start, end))
+        return self._wrap([e for e in self.ipos if start <= e.date <= end])
 
     async def get_company_profile(self, symbol: str) -> Fetched[CompanyProfile]:
         raise ProviderUnavailable(self.name, "no profiles")
@@ -146,3 +162,26 @@ def trending_daily_bars(end: date, sessions: int, start: float = 100.0, step: fl
         day = date.fromordinal(day.toordinal() - 1)
     days.reverse()
     return [daily_bar(d, f"{start + i * step:.2f}") for i, d in enumerate(days)]
+
+
+class FakeMacro(MacroDataProvider):
+    name = "fake-fred"
+
+    def __init__(self, series: dict[str, list[tuple[date, str]]], failing: set[str] | None = None) -> None:
+        self.cache = MemoryCache()
+        self.series = series
+        self.failing = failing or set()
+
+    async def get_series(self, series_id: str, start: date) -> Fetched[MacroSeries]:
+        if series_id in self.failing:
+            raise ProviderError(self.name, f"{series_id} down")
+        points = [
+            MacroObservation(date=d, value=Decimal(v))
+            for d, v in self.series.get(series_id, [])
+            if d >= start
+        ]
+        data = MacroSeries(
+            series_id=series_id, title=f"Series {series_id}", units="%", frequency="M", last_updated=None,
+            observations=points,
+        )  # fmt: skip
+        return Fetched[MacroSeries](data=data, as_of=NOW, source=self.name)

@@ -16,7 +16,7 @@ import httpx
 from app.core.cache import CacheBackend, Fetched, cached
 from app.core.errors import NoDataError, ProviderError, ProviderUnavailable, RateLimitExceeded
 from app.core.ratelimit import RateLimiter
-from app.providers.base import Bar, Bars, ForexRate, Interval, MarketDataProvider
+from app.providers.base import Bar, Bars, ForexRate, Interval, MarketDataProvider, Quote
 from app.providers.http import ProviderTransport
 
 BASE_URL = "https://api.twelvedata.com"
@@ -24,6 +24,9 @@ BASE_URL = "https://api.twelvedata.com"
 TTL_DAILY_BARS = 6 * 3600
 TTL_INTRADAY_BARS = 5 * 60
 TTL_FOREX_RATE = 60
+# Quotes cost one credit per symbol against 8/min and 800/day, so they're cached longer than Finnhub's (60s)
+# and the UI labels them as delayed.
+TTL_QUOTE = 5 * 60
 
 # Our symbol directory uses Finnhub-style forex symbols (OANDA:EUR_USD); Twelve Data wants EUR/USD.
 _FOREX_SYMBOL = re.compile(r"^[A-Z]+:([A-Z]{3})_([A-Z]{3})$")
@@ -104,6 +107,25 @@ class TwelveDataProvider(MarketDataProvider):
             currency=meta.get("currency") or None,
             exchange_timezone=meta.get("exchange_timezone") or None,
             bars=bars,
+        )
+
+    @cached(ttl=TTL_QUOTE)
+    async def get_quote(self, symbol: str) -> Quote:
+        raw = await self._get("/quote", {"symbol": to_vendor_symbol(symbol)})
+        price = _dec(raw.get("close"))
+        if price is None:
+            raise NoDataError(self.name, f"no quote for {symbol}")
+        last = raw.get("last_quote_at") or raw.get("timestamp")
+        return Quote(
+            symbol=symbol,
+            price=price,
+            change=_dec(raw.get("change")),
+            change_pct=_dec(raw.get("percent_change")),
+            open=_dec(raw.get("open")),
+            high=_dec(raw.get("high")),
+            low=_dec(raw.get("low")),
+            prev_close=_dec(raw.get("previous_close")),
+            timestamp=datetime.fromtimestamp(last, tz=UTC) if isinstance(last, int | float) else None,
         )
 
     @cached(ttl=TTL_FOREX_RATE)

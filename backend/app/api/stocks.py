@@ -1,8 +1,10 @@
+from datetime import timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Query
 
 from app.api.deps import ContainerDep, SessionDep, SymbolDep
+from app.container import Container
 from app.core.cache import Fetched
 from app.models import Symbol
 from app.providers.base import CompanyProfile, KeyMetrics, NewsItem, Quote
@@ -11,6 +13,11 @@ from app.services import quote_service, search_service, stock_service
 from app.services.stock_service import ChartRange
 
 router = APIRouter(prefix="/api/v1", tags=["stocks"])
+
+
+def forex_board_max_age(container: Container) -> timedelta:
+    # A board rate is good enough for a page view while it's younger than one refresh interval.
+    return timedelta(seconds=container.settings.forex_refresh_s)
 
 
 def to_symbol_out(symbol: Symbol) -> SymbolOut:
@@ -23,6 +30,10 @@ def to_symbol_out(symbol: Symbol) -> SymbolOut:
         currency=symbol.currency,
         price_available=search_service.price_available(symbol),
         streamable=search_service.streamable(symbol),
+        tradable=search_service.tradable(symbol),
+        price_note=search_service.price_note(symbol),
+        trade_note=search_service.trade_note(symbol),
+        quote_delay_min=search_service.FOREX_QUOTE_DELAY_MIN if search_service.is_forex(symbol) else None,
     )
 
 
@@ -43,7 +54,9 @@ async def stock(symbol: SymbolDep) -> SymbolOut:
 
 @router.get("/stocks/{symbol}/quote", response_model=Fetched[Quote])
 async def quote(symbol: SymbolDep, container: ContainerDep) -> Fetched[Quote]:
-    return await quote_service.get_quote(container.providers.quotes, container.hub, symbol)
+    return await quote_service.get_symbol_quote(
+        container.providers, container.hub, container.cache, symbol, forex_board_max_age(container)
+    )
 
 
 @router.get("/stocks/{symbol}/profile", response_model=Fetched[CompanyProfile])

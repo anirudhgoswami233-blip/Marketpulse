@@ -6,7 +6,7 @@ from fastapi import APIRouter, Query, status
 from sqlalchemy import select
 
 from app.api.deps import ContainerDep, CurrentUser, SessionDep
-from app.api.stocks import to_symbol_out
+from app.api.stocks import forex_board_max_age, to_symbol_out
 from app.core.errors import NoDataError, ProviderError, ProviderUnavailable
 from app.models import Symbol, Trade
 from app.schemas.portfolio import (
@@ -109,7 +109,13 @@ async def bulk_quotes(
             return QuoteResult(symbol=code, quote=None, error="unavailable")
         try:
             async with semaphore:
-                quote = await quote_service.get_quote(container.providers.quotes, container.hub, symbol)
+                quote = await quote_service.get_symbol_quote(
+                    container.providers,
+                    container.hub,
+                    container.cache,
+                    symbol,
+                    forex_board_max_age(container),
+                )
         except (ProviderUnavailable, NoDataError):
             return QuoteResult(symbol=code, quote=None, error="unavailable")
         except ProviderError:

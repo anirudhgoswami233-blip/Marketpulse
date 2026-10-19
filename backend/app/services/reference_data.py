@@ -76,3 +76,39 @@ def overview_config() -> OverviewConfig:
         sectors=tuple(SectorConfig(**s) for s in raw["sectors"]),
         movers_universe=tuple(raw["movers_universe"]),
     )
+
+
+@dataclass(frozen=True)
+class BoardEntry:
+    pair: str  # "EUR/USD"
+    group: str
+    symbol: str | None  # directory symbol for linking, if the pair is in the directory
+
+
+@dataclass(frozen=True)
+class ExtraPair:
+    symbol: str
+    display_symbol: str
+    description: str
+
+
+@dataclass(frozen=True)
+class ForexConfig:
+    base_pairs: tuple[str, ...]
+    board: tuple[BoardEntry, ...]
+    currencies: tuple[tuple[str, str], ...]  # (code, name)
+    extra_pairs: tuple[ExtraPair, ...]
+    # Asset codes our forex provider doesn't price on its free plan: code -> name.
+    unpriced_assets: tuple[tuple[str, str], ...] = ()
+
+
+@lru_cache
+def forex_config() -> ForexConfig:
+    raw = _load("forex.json")
+    return ForexConfig(
+        base_pairs=tuple(raw["base_pairs"]),
+        board=tuple(BoardEntry(**b) for b in raw["board"]),
+        currencies=tuple((c["code"], c["name"]) for c in raw["currencies"]),
+        extra_pairs=tuple(ExtraPair(**p) for p in raw["extra_pairs"]),
+        unpriced_assets=tuple((a["code"], a["name"]) for a in raw.get("unpriced_assets", [])),
+    )

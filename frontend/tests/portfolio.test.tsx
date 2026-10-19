@@ -23,8 +23,23 @@ const AAPL: SymbolInfo = {
   currency: "USD",
   price_available: true,
   streamable: true,
+  tradable: true,
+  price_note: null,
+  trade_note: null,
+  quote_delay_min: null,
 };
-const VOD: SymbolInfo = { ...AAPL, symbol: "VOD", display_symbol: "VOD", description: "VODAFONE", exchange: "L", price_available: false, streamable: false };
+const VOD: SymbolInfo = {
+  ...AAPL,
+  symbol: "VOD",
+  display_symbol: "VOD",
+  description: "VODAFONE",
+  exchange: "L",
+  price_available: false,
+  streamable: false,
+  tradable: false,
+  price_note: "Prices for London Stock Exchange listings aren't on our current data plan, so no price or chart will show.",
+  trade_note: "Prices for London Stock Exchange listings aren't on our current data plan, so no price or chart will show.",
+};
 
 const quoteEnvelope = (symbol: string, price: string, stale = false) => ({
   data: {
@@ -64,7 +79,8 @@ describe("WatchlistsView", () => {
     const table = await screen.findByRole("table");
     await waitFor(() => expect(within(table).getByText(/250\.50/)).toBeTruthy());
     expect(within(table).getByText(/Data as of/)).toBeTruthy(); // stale quote is labelled
-    expect(within(table).getByText("Not on our data plan")).toBeTruthy();
+    expect(within(table).getByText("No price data")).toBeTruthy();
+    expect(within(table).getByText(/London Stock Exchange listings/)).toBeTruthy(); // reason for screen readers
   });
 
   it("shows the empty state and surfaces API errors from actions", async () => {

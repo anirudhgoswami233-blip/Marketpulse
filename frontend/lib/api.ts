@@ -5,7 +5,10 @@ import type {
   CompanyProfile,
   BulkQuotes,
   Envelope,
+  ForexBoard,
+  IpoWeek,
   KeyMetrics,
+  MacroDashboard,
   MarketOverview,
   NewsItem,
   Quote,
@@ -122,6 +125,9 @@ export const api = {
     return apiGet<Signal[]>(`/api/v1/signals/history?${query}`);
   },
   signalPerformance: () => apiGet<SignalPerformance>("/api/v1/signals/performance"),
+  forex: () => apiGet<ForexBoard>("/api/v1/forex"),
+  macro: () => apiGet<MacroDashboard>("/api/v1/macro"),
+  ipos: (week: string) => apiGet<IpoWeek>(`/api/v1/calendar/ipos?week=${enc(week)}`),
   chart: (symbol: string, range: ChartRange, init?: RequestInit) =>
     apiGet<Envelope<Chart>>(`/api/v1/stocks/${enc(symbol)}/chart?range=${range}`, init),
 };

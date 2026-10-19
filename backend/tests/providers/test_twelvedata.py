@@ -146,3 +146,39 @@ async def test_forex_rate_mapping(provider: TwelveDataProvider, respx_mock: resp
     assert rate.rate == Decimal("84.1234")
     assert (rate.base, rate.quote) == ("USD", "INR")
     assert route.calls.last.request.url.params["symbol"] == "USD/INR"
+
+
+async def test_quote_maps_forex_and_metals(
+    provider: TwelveDataProvider, respx_mock: respx.MockRouter
+) -> None:
+    route = respx_mock.get(f"{BASE_URL}/quote").respond(
+        json={
+            "symbol": "XAU/USD",
+            "name": "Gold Spot / US Dollar",
+            "datetime": "2026-10-19",
+            "timestamp": 1792353600,
+            "last_quote_at": 1792400000,
+            "open": "4160.0",
+            "high": "4171.5",
+            "low": "4140.2",
+            "close": "4150.71643",
+            "previous_close": "4165.4771",
+            "change": "-14.76067",
+            "percent_change": "-0.35435725",
+            "is_market_open": True,
+        }
+    )
+    quote = (await provider.get_quote("OANDA:XAU_USD")).data
+    assert route.calls.last.request.url.params["symbol"] == "XAU/USD"
+    assert quote.symbol == "OANDA:XAU_USD"
+    assert quote.price == Decimal("4150.71643") and quote.prev_close == Decimal("4165.4771")
+    assert quote.change_pct == Decimal("-0.35435725")
+    assert quote.timestamp == datetime.fromtimestamp(1792400000, tz=UTC)
+
+
+async def test_quote_without_price_is_no_data(
+    provider: TwelveDataProvider, respx_mock: respx.MockRouter
+) -> None:
+    respx_mock.get(f"{BASE_URL}/quote").respond(json={"symbol": "ZZZ/USD"})
+    with pytest.raises(NoDataError):
+        await provider.get_quote("FX:ZZZ_USD")

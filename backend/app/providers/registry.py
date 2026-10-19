@@ -37,3 +37,11 @@ class ProviderRegistry:
     history: MarketDataProvider
     forex_rates: MarketDataProvider
     macro: MacroDataProvider
+    # Quotes for forex and metals (Finnhub's free tier has none).
+    forex_quotes: MarketDataProvider | None = None
+
+    def quotes_for(self, exchange_code: str) -> MarketDataProvider:
+        """Which provider quotes a symbol on `exchange_code`. Services pass `symbol.exchange_code`."""
+        if exchange_code in ("OANDA", "FX") and self.forex_quotes is not None:
+            return self.forex_quotes
+        return self.quotes

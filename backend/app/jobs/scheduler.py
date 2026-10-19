@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from app.container import Container
-from app.jobs import daily_brief, market_snapshot, signal_outcomes
+from app.jobs import daily_brief, forex_snapshot, market_snapshot, signal_outcomes
 
 
 def build_scheduler(container: Container) -> AsyncIOScheduler:
@@ -37,6 +37,17 @@ def build_scheduler(container: Container) -> AsyncIOScheduler:
         args=[container],
         id="signal_outcomes",
         next_run_time=datetime.now(UTC),
+        max_instances=1,
+        coalesce=True,
+    )
+    # No run at startup: the in-memory cache is empty after every restart (and dev restarts on each save), so
+    # the first /forex request warms the board instead of spending Twelve Data credits on every reload.
+    scheduler.add_job(
+        forex_snapshot.run,
+        "interval",
+        seconds=container.settings.forex_refresh_s,
+        args=[container],
+        id="forex_snapshot",
         max_instances=1,
         coalesce=True,
     )

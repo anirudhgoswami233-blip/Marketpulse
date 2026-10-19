@@ -47,6 +47,8 @@ class Settings(BaseSettings):
     sse_max_symbols_per_client: int = 30
     overview_refresh_open_s: int = 300
     overview_refresh_closed_s: int = 1800
+    # Forex board base pairs cost one Twelve Data credit each per refresh (8 pairs hourly ~ 192/day).
+    forex_refresh_s: int = 3600
 
     # Auth: short-lived JWT access tokens, rotating opaque refresh tokens in an httpOnly cookie.
     access_token_ttl_s: int = 15 * 60

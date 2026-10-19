@@ -57,6 +57,20 @@ def test_last_completed_session(
     assert last_completed_session_date(schedules["US"], now) == expected
 
 
+@pytest.mark.parametrize(
+    ("now", "expected"),
+    [
+        (utc(2026, 10, 21, 12, 0), date(2026, 10, 20)),  # Wednesday -> Tuesday
+        (utc(2026, 10, 19, 12, 0), date(2026, 10, 16)),  # Monday -> Friday
+        (utc(2026, 10, 18, 22, 0), date(2026, 10, 16)),  # Sunday evening (market reopened) -> Friday
+    ],
+)
+def test_forex_last_completed_day(
+    schedules: dict[str, ExchangeSchedule], now: datetime, expected: date
+) -> None:
+    assert last_completed_session_date(schedules["OANDA"], now) == expected
+
+
 def test_forex_closed_on_saturday_and_open_midweek(schedules: dict[str, ExchangeSchedule]) -> None:
     saturday = status_at(schedules["OANDA"], utc(2026, 10, 17, 12, 0))
     assert not saturday.is_open

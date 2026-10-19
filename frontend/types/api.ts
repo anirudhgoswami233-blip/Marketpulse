@@ -91,6 +91,13 @@ export interface SymbolInfo {
   currency: string | null;
   price_available: boolean;
   streamable: boolean;
+  tradable: boolean;
+  /** Why no price/chart will show (backend wording, shown as-is), or null when prices are available. */
+  price_note: string | null;
+  /** Why paper trading isn't offered, or null when it is. */
+  trade_note: string | null;
+  /** Quote delay for symbols without a live stream (forex/metals), else null. */
+  quote_delay_min: number | null;
 }
 
 export interface SearchResults {
@@ -342,4 +349,97 @@ export interface BriefSummary {
   brief_date: string;
   generated_at: IsoDateTime;
   signal_count: number;
+}
+
+// --- forex, macro, calendar ------------------------------------------------------------------------
+
+export interface ForexRow {
+  pair: string;
+  group: string;
+  symbol: string | null;
+  rate: DecimalString | null;
+  change_pct: DecimalString | null;
+  derived: boolean;
+}
+
+export interface ForexBoard {
+  rows: ForexRow[];
+  usd_per_unit: Record<string, DecimalString>;
+  currencies: { code: string; name: string }[];
+  as_of: IsoDateTime | null;
+  stale: boolean;
+  refreshing: boolean;
+  refresh_interval_min: number;
+}
+
+export interface MacroPoint {
+  date: string;
+  value: DecimalString;
+}
+
+export interface MacroCard {
+  id: string;
+  title: string;
+  group: string;
+  unit: string;
+  transform: "level" | "yoy";
+  source_title: string | null;
+  frequency: string | null;
+  latest: MacroPoint | null;
+  previous: MacroPoint | null;
+  change: DecimalString | null;
+  observations: MacroPoint[];
+  as_of: IsoDateTime | null;
+  stale: boolean;
+  error: string | null;
+}
+
+export interface MacroDashboard {
+  cards: MacroCard[];
+  configured: boolean;
+}
+
+export type EarningsSession = "before_open" | "after_close" | "during_market" | "unknown";
+
+export interface EarningsRow {
+  symbol: string;
+  name: string | null;
+  date: string;
+  session: EarningsSession;
+  quarter: number | null;
+  year: number | null;
+  eps_estimate: DecimalString | null;
+  eps_actual: DecimalString | null;
+  eps_surprise_pct: DecimalString | null;
+  revenue_estimate: DecimalString | null;
+  revenue_actual: DecimalString | null;
+  in_watchlist: boolean;
+}
+
+export interface EarningsWeek {
+  week_start: string;
+  week_end: string;
+  events: EarningsRow[];
+  total: number;
+  as_of: IsoDateTime;
+  stale: boolean;
+}
+
+export interface IpoRow {
+  symbol: string | null;
+  name: string;
+  date: string;
+  exchange: string | null;
+  status: string | null;
+  price_range: string | null;
+  shares: number | null;
+  total_value: DecimalString | null;
+}
+
+export interface IpoWeek {
+  week_start: string;
+  week_end: string;
+  events: IpoRow[];
+  as_of: IsoDateTime;
+  stale: boolean;
 }

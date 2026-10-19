@@ -32,7 +32,7 @@ from app.services.portfolio_math import (
     q,
     value_holding,
 )
-from app.services.search_service import price_available
+from app.services.search_service import trade_note
 from app.ws.hub import PriceHub
 
 logger = logging.getLogger(__name__)
@@ -90,11 +90,9 @@ async def place_order(
     quantity: Decimal,
     portfolio_id: int | None = None,
 ) -> Trade:
-    if not price_available(symbol):
-        raise ValidationFailed(
-            f"{symbol.display_symbol} can't be traded: we don't have live prices for its exchange.",
-            code="not_tradable",
-        )
+    note = trade_note(symbol)
+    if note is not None:
+        raise ValidationFailed(f"{symbol.display_symbol} can't be traded. {note}", code="not_tradable")
 
     try:
         fetched = await quote_service.get_quote(provider, hub, symbol)

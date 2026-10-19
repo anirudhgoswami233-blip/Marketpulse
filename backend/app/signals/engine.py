@@ -171,9 +171,9 @@ def week52_rule(bars: Sequence[DailyBar]) -> Signal | Skipped | None:
     return None
 
 
-def news_rule(headlines: Sequence[str] | None) -> Signal | Skipped:
+def news_rule(headlines: Sequence[str] | None, skip_reason: str | None = None) -> Signal | Skipped:
     if headlines is None:
-        return Skipped("news", "News wasn't available for this symbol.")
+        return Skipped("news", skip_reason or "News wasn't available for this symbol.")
     if len(headlines) < MIN_HEADLINES:
         return Skipped("news", f"Too few recent headlines to judge tone ({len(headlines)}).")
     tone = news_tone(headlines)
@@ -197,7 +197,9 @@ def score_signals(signals: Sequence[Signal]) -> tuple[int, Label]:
     return score, Label.NEUTRAL
 
 
-def evaluate(bars: Sequence[DailyBar], headlines: Sequence[str] | None) -> SignalResult:
+def evaluate(
+    bars: Sequence[DailyBar], headlines: Sequence[str] | None, news_skip_reason: str | None = None
+) -> SignalResult:
     """Run every rule over oldest-first daily bars and recent headlines."""
     closes = [b.close for b in bars]
     outcomes: list[Signal | Skipped | None] = [
@@ -206,7 +208,7 @@ def evaluate(bars: Sequence[DailyBar], headlines: Sequence[str] | None) -> Signa
         *trend_rules(closes),
         volume_rule(bars),
         week52_rule(bars),
-        news_rule(headlines),
+        news_rule(headlines, news_skip_reason),
     ]
     signals = [o for o in outcomes if isinstance(o, Signal)]
     skipped = [o for o in outcomes if isinstance(o, Skipped)]

@@ -14,5 +14,6 @@
   {"code": "SZ", "name": "Shenzhen Stock Exchange", "mic": "XSHE", "timezone": "Asia/Shanghai", "currency": "CNY", "country": "CN", "region": "Asia-Pacific", "sessions": [["09:30", "11:30"], ["13:00", "15:00"]]},
   {"code": "KS", "name": "Korea Exchange", "mic": "XKRX", "timezone": "Asia/Seoul", "currency": "KRW", "country": "KR", "region": "Asia-Pacific", "sessions": [["09:00", "15:30"]]},
   {"code": "AX", "name": "Australian Securities Exchange", "mic": "XASX", "timezone": "Australia/Sydney", "currency": "AUD", "country": "AU", "region": "Asia-Pacific", "sessions": [["10:00", "16:00"]]},
-  {"code": "OANDA", "name": "OANDA (forex)", "mic": null, "timezone": "UTC", "currency": null, "country": null, "region": "Global", "sessions": []}
+  {"code": "OANDA", "name": "OANDA (forex & metals)", "mic": null, "timezone": "UTC", "currency": null, "country": null, "region": "Global", "sessions": []},
+  {"code": "FX", "name": "Forex (additional pairs)", "mic": null, "timezone": "UTC", "currency": null, "country": null, "region": "Global", "sessions": []}
 ]

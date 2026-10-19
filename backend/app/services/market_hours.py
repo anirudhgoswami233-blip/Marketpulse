@@ -58,6 +58,13 @@ def status_at(schedule: ExchangeSchedule, now: datetime) -> ScheduleStatus:
 
 def last_completed_session_date(schedule: ExchangeSchedule, now: datetime) -> date:
     """The most recent trading date whose regular session has fully closed (holidays not considered)."""
+    if not schedule.sessions:
+        # 24x5 markets (forex, metals): daily bars are UTC calendar days, so the last complete one is the most
+        # recent weekday before today (UTC).
+        day = now.astimezone(UTC).date() - timedelta(days=1)
+        while day.weekday() >= 5:
+            day -= timedelta(days=1)
+        return day
     local = now.astimezone(ZoneInfo(schedule.timezone))
     day = local.date()
     for _ in range(8):

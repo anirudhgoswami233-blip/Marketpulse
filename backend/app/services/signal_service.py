@@ -92,6 +92,12 @@ async def get_or_compute(
         return existing
 
     headlines: list[str] | None
+    if symbol.exchange_code != "US":
+        # Company news only exists for listed companies; skip the call for forex/metals.
+        result = evaluate(
+            to_daily_bars(bars), None, news_skip_reason="News tone applies to US-listed companies only."
+        )
+        return await _store(session, symbol, signal_date, result, bars[-1].close)
     try:
         news_items = await news.get_company_news(
             symbol.symbol, signal_date - timedelta(days=NEWS_LOOKBACK_DAYS), now.date()

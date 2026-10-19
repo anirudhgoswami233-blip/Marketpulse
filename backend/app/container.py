@@ -49,6 +49,9 @@ class Container:
         if self.stream is not None:
             self.stream.start()
 
+    def is_running(self, name: str) -> bool:
+        return any(t.get_name() == name and not t.done() for t in self.background_tasks)
+
     def spawn(self, coro: Coroutine[Any, Any, None], name: str) -> None:
         task = asyncio.create_task(coro, name=name)
         self.background_tasks.add(task)
@@ -133,6 +136,7 @@ def build_container(settings: Settings) -> Container:
         history=fallback,
         forex_rates=fallback,
         macro=macro,
+        forex_quotes=fallback,
     )
     hub = PriceHub()
     stream = None

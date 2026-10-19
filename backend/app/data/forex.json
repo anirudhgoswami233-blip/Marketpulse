@@ -1,0 +1,150 @@
+{
+  "_note": "Base pairs are fetched from Twelve Data (one credit each, refreshed by a background job). Every other rate on the board and in the converter is derived from them, so it costs no extra credits.",
+  "base_pairs": [
+    "EUR/USD",
+    "GBP/USD",
+    "USD/JPY",
+    "USD/CHF",
+    "AUD/USD",
+    "USD/CAD",
+    "USD/INR",
+    "XAU/USD"
+  ],
+  "board": [
+    {
+      "pair": "EUR/USD",
+      "group": "Majors",
+      "symbol": "OANDA:EUR_USD"
+    },
+    {
+      "pair": "GBP/USD",
+      "group": "Majors",
+      "symbol": "OANDA:GBP_USD"
+    },
+    {
+      "pair": "USD/JPY",
+      "group": "Majors",
+      "symbol": "OANDA:USD_JPY"
+    },
+    {
+      "pair": "USD/CHF",
+      "group": "Majors",
+      "symbol": "OANDA:USD_CHF"
+    },
+    {
+      "pair": "AUD/USD",
+      "group": "Majors",
+      "symbol": "OANDA:AUD_USD"
+    },
+    {
+      "pair": "USD/CAD",
+      "group": "Majors",
+      "symbol": "OANDA:USD_CAD"
+    },
+    {
+      "pair": "USD/INR",
+      "group": "Indian rupee",
+      "symbol": "FX:USD_INR"
+    },
+    {
+      "pair": "EUR/INR",
+      "group": "Indian rupee",
+      "symbol": "FX:EUR_INR"
+    },
+    {
+      "pair": "GBP/INR",
+      "group": "Indian rupee",
+      "symbol": "FX:GBP_INR"
+    },
+    {
+      "pair": "JPY/INR",
+      "group": "Indian rupee",
+      "symbol": "FX:JPY_INR"
+    },
+    {
+      "pair": "XAU/USD",
+      "group": "Metals",
+      "symbol": "OANDA:XAU_USD"
+    },
+    {
+      "pair": "XAU/INR",
+      "group": "Metals",
+      "symbol": null
+    }
+  ],
+  "currencies": [
+    {
+      "code": "USD",
+      "name": "US dollar"
+    },
+    {
+      "code": "EUR",
+      "name": "Euro"
+    },
+    {
+      "code": "GBP",
+      "name": "British pound"
+    },
+    {
+      "code": "JPY",
+      "name": "Japanese yen"
+    },
+    {
+      "code": "CHF",
+      "name": "Swiss franc"
+    },
+    {
+      "code": "AUD",
+      "name": "Australian dollar"
+    },
+    {
+      "code": "CAD",
+      "name": "Canadian dollar"
+    },
+    {
+      "code": "INR",
+      "name": "Indian rupee"
+    },
+    {
+      "code": "XAU",
+      "name": "Gold (troy ounce)"
+    }
+  ],
+  "extra_pairs": [
+    {
+      "symbol": "FX:USD_INR",
+      "display_symbol": "USD/INR",
+      "description": "US Dollar / Indian Rupee"
+    },
+    {
+      "symbol": "FX:EUR_INR",
+      "display_symbol": "EUR/INR",
+      "description": "Euro / Indian Rupee"
+    },
+    {
+      "symbol": "FX:GBP_INR",
+      "display_symbol": "GBP/INR",
+      "description": "British Pound / Indian Rupee"
+    },
+    {
+      "symbol": "FX:JPY_INR",
+      "display_symbol": "JPY/INR",
+      "description": "Japanese Yen / Indian Rupee"
+    }
+  ],
+  "unpriced_assets": [
+    {
+      "code": "XAG",
+      "name": "Silver"
+    },
+    {
+      "code": "XPT",
+      "name": "Platinum"
+    },
+    {
+      "code": "XPD",
+      "name": "Palladium"
+    }
+  ],
+  "_note_unpriced": "Twelve Data's free plan returns 'not available on our plan' for XAG/USD (checked 2026-10-19); platinum and palladium are assumed the same."
+}

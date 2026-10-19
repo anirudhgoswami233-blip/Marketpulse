@@ -13,11 +13,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db import dialect_insert
 from app.models import Exchange, Symbol
 from app.providers.base import ForexSymbol, SymbolRecord
-from app.services.reference_data import exchange_rows
+from app.services.reference_data import exchange_rows, forex_config
 
 logger = logging.getLogger(__name__)
 
 FOREX_EXCHANGE = "OANDA"
+# Pairs OANDA doesn't list (e.g. INR crosses), defined in data/forex.json and priced by Twelve Data.
+EXTRA_FX_EXCHANGE = "FX"
 # SQLite caps bound parameters per statement; 500 rows x 9 columns stays well under it.
 CHUNK_SIZE = 500
 
@@ -97,4 +99,19 @@ def forex_to_records(symbols: Sequence[ForexSymbol]) -> list[SymbolRecord]:
             figi=None,
         )
         for s in symbols
+    ]
+
+
+def extra_pair_records() -> list[SymbolRecord]:
+    return [
+        SymbolRecord(
+            symbol=p.symbol,
+            display_symbol=p.display_symbol,
+            description=p.description,
+            type="Forex",
+            currency=p.display_symbol.split("/")[-1],
+            mic=None,
+            figi=None,
+        )
+        for p in forex_config().extra_pairs
     ]

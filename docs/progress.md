@@ -11,19 +11,18 @@ request is deferred.
 | 2 | Markets overview, search, stock pages, live prices, Next.js shell | Done |
 | 3 | Auth, watchlists, paper trading | Done |
 | 4 | Signal engine, Daily Brief, Signal History | Done |
-| 5 | Forex & metals, macro dashboard, earnings/IPO calendar | Not started |
+| 5 | Forex & metals, macro dashboard, earnings/IPO calendar | Done |
 | 6 | Polish, performance, README, test gaps | Not started |
 
 ## Deferred requests
 
-### Phase 5
-- **Forex and metals prices and charts.** Searching gold (`OANDA:XAU_USD`) currently shows no price or chart.
-  Route forex and metals (XAU/USD, EUR/USD, USD/INR, …) through Twelve Data for quotes and charts.
-  Finnhub's free tier blocks forex quotes and candles (see `finnhub-endpoints.md`); the Twelve Data
-  adapter already maps `OANDA:EUR_USD` → `EUR/USD`.
-- **Explain missing prices on actions.** On pages without price data, the watchlist and trade options
-  should say that prices won't show for this symbol, rather than the controls simply missing or the
-  watchlist row saying "Not on our data plan" with no further context.
+### Phase 5 (done 2026-10-19)
+- ~~Forex and metals prices and charts~~ via Twelve Data: quotes (5-min cache, labelled delayed), charts,
+  signals. INR pairs added under the `FX` pseudo-exchange (`seed_symbols.py --extras-only`).
+- ~~Explain missing prices on actions~~: the backend's `price_note` / `trade_note` show next to the
+  watchlist control, instead of the trade panel, and in watchlist rows.
+- **Found while building:** Twelve Data's free plan doesn't price silver (XAG/USD returns "not available on
+  our plan"); platinum and palladium are assumed the same and are shown as unpriced with that explanation.
 
 ### Decisions
 - **Daily Brief text stays templated** (decided 2026-10-19). The optional LLM rewrite from the original spec
@@ -31,6 +30,11 @@ request is deferred.
   `services/brief_service.py` stays, so an LLM writer can be added later without touching the job.
 
 ### Phase 6
+- **Twelve Data budget is shared across servers.** Each backend process has its own 750/day limiter, but the
+  vendor counts 800/day per key. Two servers on one key (e.g. a dev server plus a test server) can overspend.
+  With Redis configured the limiter is shared; consider requiring Redis outside dev.
+- **Long header nav.** Nine links now wrap on medium screens; consider grouping (Markets / Forex / Macro /
+  Calendar vs. My stuff).
 - **Brief overnight section needs the market snapshot.** A brief generated before the overview snapshot job
   has run (e.g. right after a server start) shows "n/a" for regions and no trending symbols. Consider
   warming the snapshot first or letting the brief job fetch the regional ETF quotes itself.

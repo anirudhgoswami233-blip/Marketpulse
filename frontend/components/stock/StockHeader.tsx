@@ -26,10 +26,16 @@ export function LiveQuote({ info, quote }: { info: SymbolInfo; quote: Envelope<Q
             <span aria-hidden>●</span> Live
           </span>
         )}
-        {display.timestamp && (
-          <span>
-            Last trade <LocalTime iso={display.timestamp} withDate />
+        {info.quote_delay_min !== null ? (
+          <span title="No live stream for forex and metals on our data plan">
+            Delayed up to {info.quote_delay_min} min · updated <LocalTime iso={quote.as_of} />
           </span>
+        ) : (
+          display.timestamp && (
+            <span>
+              Last trade <LocalTime iso={display.timestamp} withDate />
+            </span>
+          )
         )}
         <StaleBadge asOf={quote.as_of} stale={quote.stale} />
       </div>

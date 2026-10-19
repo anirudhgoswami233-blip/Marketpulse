@@ -1,0 +1,14 @@
+{
+  "_note": "FRED series for the macro dashboard. transform 'yoy' turns an index (e.g. CPI) into a year-over-year % change.",
+  "lookback_years": 5,
+  "series": [
+    {"id": "FEDFUNDS", "title": "Fed funds rate", "group": "Interest rates", "transform": "level", "unit": "%"},
+    {"id": "DGS2", "title": "2-year Treasury yield", "group": "Interest rates", "transform": "level", "unit": "%"},
+    {"id": "DGS10", "title": "10-year Treasury yield", "group": "Interest rates", "transform": "level", "unit": "%"},
+    {"id": "T10Y2Y", "title": "10y minus 2y yield spread", "group": "Interest rates", "transform": "level", "unit": "pp"},
+    {"id": "CPIAUCSL", "title": "US inflation (CPI, year over year)", "group": "Inflation", "transform": "yoy", "unit": "%"},
+    {"id": "CPILFESL", "title": "US core inflation (ex food & energy, YoY)", "group": "Inflation", "transform": "yoy", "unit": "%"},
+    {"id": "UNRATE", "title": "US unemployment rate", "group": "Labour market", "transform": "level", "unit": "%"},
+    {"id": "ECBDFR", "title": "ECB deposit facility rate", "group": "Global", "transform": "level", "unit": "%"}
+  ]
+}

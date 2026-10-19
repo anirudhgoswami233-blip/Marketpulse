@@ -70,6 +70,12 @@ class SymbolOut(BaseModel):
     currency: str | None
     price_available: bool
     streamable: bool
+    tradable: bool
+    # Plain-language explanations for the UI (None when not applicable).
+    price_note: str | None
+    trade_note: str | None
+    # Minutes of delay on quotes when there's no live stream (forex/metals), else None.
+    quote_delay_min: int | None
 
 
 class SearchResults(BaseModel):

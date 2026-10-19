@@ -64,6 +64,11 @@ Update this section if commands change.
 - On 429 or provider errors: back off, serve cached data with an `as_of` timestamp, and never crash a page.
 - **Free-tier gaps (checked 2026-10-19):** no candles, no non-US quotes/symbol lists, no index (`^GSPC`) or forex quotes, no `/forex/rates`, no `/news-sentiment`. Price history and forex rates come from **Twelve Data** (approved fallback; 7/min and 750/day limiter). Twelve Data's free plan also excludes NSE and other non-US equities. Global indices are shown as US-listed ETF proxies (e.g. INDA, EWJ, VGK), labelled as ETFs. News sentiment is a keyword score over headlines.
 - Symbol directory is seeded into the DB once. Search hits the DB, not Finnhub.
+- **Forex & metals:** routed by exchange (`OANDA`, `FX`) through `ProviderRegistry.quotes_for()` to Twelve Data.
+  The /forex board fetches only `base_pairs` (data/forex.json) and derives every cross, and stock-page quotes
+  for those pairs come from the board snapshot when fresh (`quote_service.get_symbol_quote`). Twelve Data
+  charges a credit per symbol (8/min, 800/day), so never add a per-row or per-poll call. Silver, platinum and
+  palladium aren't priced on its free plan (`unpriced_assets`). Paper trading stays US-only (`tradable`).
 
 ## Secrets & config
 - All keys live in `.env` (gitignored). Keep `.env.example` updated with every new variable.
@@ -104,9 +109,11 @@ Update this section if commands change.
   host, so a test backend on localhost would receive and rotate the user's real refresh cookie.
 - Use a scratchpad copy of the DB, a throwaway `JWT_SECRET`, and `ENABLE_BACKGROUND_JOBS=false
   ENABLE_STREAMING=false` (the API keys and Finnhub's per-key limits are shared with the user's server).
-- `NEXT_PUBLIC_*` is baked in at build time: build an isolated copy of the frontend (its own `npm ci`;
-  Turbopack won't follow a junctioned `node_modules`) rather than rebuilding `frontend/.next` under a
-  running server.
+- `NEXT_PUBLIC_*` is baked in at build time. The user's :3000 server is `next dev`, which writes to
+  `.next/dev`, so `next build` in `frontend/` doesn't disturb it: build with
+  `NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8001`, serve on 3001, then **rebuild with the default env**
+  afterwards. (If the user ever runs `next start`, build an isolated copy instead; Turbopack won't follow a
+  junctioned `node_modules`, so that copy needs its own `npm ci`.)
 - HTTP-level pytest fixtures use `file_db(tmp_path)`, never `:memory:` (one shared connection would merge
   concurrent sessions' transactions).
 

@@ -17,9 +17,9 @@ import { useAuthedQuery } from "@/lib/useAuthedQuery";
 import type { QuoteResult, SymbolInfo, Watchlist } from "@/types/api";
 
 const QUOTE_ERROR_TEXT: Record<NonNullable<QuoteResult["error"]>, string> = {
-  unavailable: "Not on our data plan",
+  unavailable: "No price data",
   not_found: "Unknown symbol",
-  provider_error: "Price unavailable",
+  provider_error: "Price temporarily unavailable",
 };
 
 export function WatchlistsView() {
@@ -252,6 +252,11 @@ function WatchlistRow({
         <>
           <td className="tabular py-2 text-right text-primary">
             {formatPrice(display.price, currency)}
+            {symbol.quote_delay_min !== null && (
+              <span className="ml-1 text-xs text-muted" title={`Delayed up to ${symbol.quote_delay_min} minutes`}>
+                delayed
+              </span>
+            )}
             {envelope?.stale && (
               <span className="ml-1 align-middle">
                 <StaleBadge asOf={envelope.as_of} stale />
@@ -263,8 +268,15 @@ function WatchlistRow({
           </td>
         </>
       ) : (
-        <td colSpan={2} className="py-2 text-right text-xs text-muted">
+        <td colSpan={2} className="py-2 text-right text-xs text-muted" title={symbol.price_note ?? undefined}>
           {QUOTE_ERROR_TEXT[result?.error ?? "provider_error"]}
+          {symbol.price_note && (
+            <>
+              {" "}
+              <span aria-hidden>ⓘ</span>
+              <span className="sr-only">: {symbol.price_note}</span>
+            </>
+          )}
         </td>
       )}
       <td className="py-2 text-right">

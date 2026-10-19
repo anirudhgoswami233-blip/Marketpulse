@@ -61,6 +61,15 @@ async def prepare(container: Container, provider: FakeProvider) -> None:
             [_record("AAPL", "APPLE INC", "USD", "XNAS"), _record("MSFT", "MICROSOFT CORP", "USD", "XNAS")],
         )
         await symbol_directory.upsert_symbols(session, "L", [_record("VOD", "VODAFONE", "GBP", "XLON")])
+        gold = SymbolRecord(
+            symbol="OANDA:XAU_USD", display_symbol="XAU/USD", description="Oanda Gold", type="Forex",
+            currency="USD", mic=None, figi=None,
+        )  # fmt: skip
+        silver = gold.model_copy(
+            update={"symbol": "OANDA:XAG_USD", "display_symbol": "XAG/USD", "description": "Oanda Silver"}
+        )
+        await symbol_directory.upsert_symbols(session, "OANDA", [gold, silver])
+        await symbol_directory.upsert_symbols(session, "FX", symbol_directory.extra_pair_records())
         await session.commit()
     container.providers = dataclasses.replace(
         container.providers,
@@ -68,5 +77,8 @@ async def prepare(container: Container, provider: FakeProvider) -> None:
         reference=provider,
         news=provider,
         market_status=provider,
+        calendars=provider,
         history=provider,
+        forex_rates=provider,
+        forex_quotes=provider,
     )

@@ -41,6 +41,15 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
                 <Link href="/" className="hover:text-primary">
                   Markets
                 </Link>
+                <Link href="/forex" className="hover:text-primary">
+                  Forex
+                </Link>
+                <Link href="/macro" className="hover:text-primary">
+                  Macro
+                </Link>
+                <Link href="/calendar" className="hover:text-primary">
+                  Calendar
+                </Link>
                 <Link href="/watchlists" className="hover:text-primary">
                   Watchlists
                 </Link>
