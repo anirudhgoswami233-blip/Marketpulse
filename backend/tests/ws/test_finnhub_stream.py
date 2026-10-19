@@ -1,10 +1,15 @@
 import asyncio
 import json
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from decimal import Decimal
 
 import pytest
+from websockets.datastructures import Headers
+from websockets.exceptions import ConnectionClosedError, InvalidStatus
+from websockets.frames import Close
+from websockets.http11 import Response
 
 from app.ws.finnhub_stream import FinnhubStream
 from app.ws.hub import PriceHub
@@ -68,35 +73,131 @@ async def test_symbol_cap_is_enforced() -> None:
     assert await stream.acquire("A")  # existing symbols can gain viewers
 
 
-async def test_reconnects_with_backoff_and_resubscribes() -> None:
-    connector = FakeConnector(fail_first=2)
+class ScriptedConnector:
+    """Each attempt follows the next step: "drop" connects then closes at once, an exception is raised at the
+    handshake, and "hold" connects and stays open until the test closes it."""
+
+    def __init__(self, steps: list[object], clock: "FakeClock") -> None:
+        self.steps = steps
+        self.clock = clock
+        self.sockets: list[FakeSocket] = []
+        self.urls: list[str] = []
+
+    @asynccontextmanager
+    async def __call__(self, url: str) -> AsyncIterator[FakeSocket]:
+        self.urls.append(url)
+        step = self.steps.pop(0) if self.steps else "hold"
+        if isinstance(step, BaseException):
+            raise step
+        socket = HeldSocket(self.clock, step) if isinstance(step, float) else FakeSocket()
+        self.sockets.append(socket)
+        if step == "drop":
+            await socket.incoming.put(None)
+        yield socket
+
+
+class HeldSocket(FakeSocket):
+    """Stays open for `seconds` of fake time, then the server closes it."""
+
+    def __init__(self, clock: "FakeClock", seconds: float) -> None:
+        super().__init__()
+        self.clock, self.seconds = clock, seconds
+
+    async def _iter(self) -> AsyncIterator[str]:
+        self.clock.now += self.seconds
+        return
+        yield ""
+
+
+class FakeClock:
+    def __init__(self) -> None:
+        self.now = 1000.0
+
+    def __call__(self) -> float:
+        return self.now
+
+
+async def run_until(stream: FinnhubStream, sleeps: list[float], count: int) -> None:
+    task = asyncio.create_task(stream.run())
+    for _ in range(200):
+        if len(sleeps) >= count:
+            break
+        await asyncio.sleep(0)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    assert len(sleeps) >= count, sleeps
+
+
+def make_stream(steps: list[object]) -> tuple[FinnhubStream, ScriptedConnector, list[float]]:
+    clock = FakeClock()
+    connector = ScriptedConnector(steps, clock)
     sleeps: list[float] = []
 
     async def record_sleep(seconds: float) -> None:
         sleeps.append(seconds)
+        clock.now += seconds
         await asyncio.sleep(0)
 
-    stream = FinnhubStream("secret-key", PriceHub(), connector=connector, sleep=record_sleep)
-    await stream.acquire("AAPL")  # before connecting: queued, sent on connect
-    task = asyncio.create_task(stream.run())
-    await asyncio.wait_for(connector.ready.wait(), 1)
-    await asyncio.wait_for(stream.connected.wait(), 1)
+    stream = FinnhubStream(
+        "secret-key",
+        PriceHub(),
+        connector=connector,
+        sleep=record_sleep,
+        clock=clock,
+        jitter=lambda low, high: high,  # deterministic: always the top of the jitter range
+    )
+    return stream, connector, sleeps
 
-    assert sleeps == [1.0, 2.0]
-    assert connector.sockets[0].sent == [{"type": "subscribe", "symbol": "AAPL"}]
+
+def rejected(status: int, headers: dict[str, str] | None = None) -> InvalidStatus:
+    return InvalidStatus(Response(status, "rejected", Headers(headers or {}), b""))
+
+
+async def test_connections_dropped_right_after_the_handshake_keep_backing_off() -> None:
+    # This is what Finnhub does to a second socket on the same key. Resetting the backoff on every
+    # successful handshake used to make this a reconnect every second, forever.
+    stream, _, sleeps = make_stream(["drop"] * 10)
+    await run_until(stream, sleeps, 10)
+    assert sleeps[:10] == [2, 4, 8, 16, 32, 64, 128, 256, 300, 300]
+
+
+async def test_a_stable_connection_resets_the_backoff_and_resubscribes() -> None:
+    stream, connector, sleeps = make_stream([OSError("refused"), OSError("refused"), 120.0, "drop"])
+    await stream.acquire("AAPL")  # before connecting: queued, sent on connect
+    await run_until(stream, sleeps, 4)
+    # Two failures, then a connection that held for 2 minutes: the next retry starts from the bottom again.
+    assert sleeps[:4] == [2, 4, 2, 2]
+    assert all(s.sent == [{"type": "subscribe", "symbol": "AAPL"}] for s in connector.sockets)
     assert connector.urls[0].endswith("token=secret-key")
 
-    # Server drops the connection: we reconnect and resubscribe.
-    connector.ready.clear()
-    await connector.sockets[0].incoming.put(None)
-    await asyncio.wait_for(connector.ready.wait(), 1)
-    await asyncio.sleep(0)
-    assert connector.sockets[1].sent == [{"type": "subscribe", "symbol": "AAPL"}]
-    assert sleeps[-1] == 1.0  # backoff reset after the successful connection
 
-    task.cancel()
-    with pytest.raises(asyncio.CancelledError):
-        await task
+async def test_rate_limited_handshakes_wait_at_least_a_minute_or_retry_after() -> None:
+    stream, _, sleeps = make_stream([rejected(429), rejected(429, {"Retry-After": "180"})])
+    await run_until(stream, sleeps, 2)
+    assert sleeps[:2] == [60, 180]
+
+
+async def test_a_rejected_key_waits_long_and_says_so(caplog: pytest.LogCaptureFixture) -> None:
+    stream, _, sleeps = make_stream([rejected(401)])
+    with caplog.at_level(logging.WARNING, logger="app.ws.finnhub_stream"):
+        await run_until(stream, sleeps, 1)
+    assert sleeps[0] == 900
+    assert "rejected the API key (HTTP 401)" in caplog.text
+
+
+async def test_logs_name_the_close_code_and_contention_but_never_the_token(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    closed = ConnectionClosedError(Close(1008, "Too many connections"), None)
+    stream, _, sleeps = make_stream([closed, "drop", rejected(429)])
+    with caplog.at_level(logging.INFO, logger="app.ws.finnhub_stream"):
+        await run_until(stream, sleeps, 3)
+    assert "closed by server with code 1008: Too many connections (never connected)" in caplog.text
+    assert "closed by server (was connected for 0s)" in caplog.text
+    assert "handshake rejected with HTTP 429" in caplog.text
+    assert "one WebSocket per API key" in caplog.text
+    assert "secret-key" not in caplog.text
 
 
 def test_trade_messages_reach_the_hub() -> None:

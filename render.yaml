@@ -10,8 +10,10 @@ services:
     buildCommand: pip install -r requirements.txt
     # Free instances have no pre-deploy command, so migrations run right before the server starts. They're
     # idempotent: an up-to-date database is a no-op. --proxy-headers makes the client IP (used by the login
-    # lockout) and https scheme come from Render's proxy.
-    startCommand: alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips="*"
+    # lockout) and https scheme come from Render's proxy. --workers 1 is deliberate: uvicorn otherwise takes its
+    # worker count from WEB_CONCURRENCY, which Render sets on newer services, and every extra process would open
+    # its own Finnhub WebSocket (one allowed per key) and run its own copy of the scheduled jobs.
+    startCommand: alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 1 --proxy-headers --forwarded-allow-ips="*"
     healthCheckPath: /health
     autoDeploy: true
     envVars:

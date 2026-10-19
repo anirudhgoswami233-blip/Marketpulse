@@ -32,7 +32,8 @@ proxy isn't meant to hold long-lived streams.
 - You have the three data API keys from the [README](README.md#1-get-the-api-keys-all-free).
   **Use the same keys only if your local dev server is stopped or quiet.** The vendors count calls per key,
   and your laptop's limiter doesn't share counts with production's Redis. Separate free keys for production
-  are the safest choice.
+  are the safest choice. Finnhub also allows **only one WebSocket per key**: if you share the key, set
+  `ENABLE_STREAMING=false` in your local `backend/.env`, or live prices on one side will keep disconnecting.
 - Have a password manager or scratch note open: you'll copy a few URLs and secrets between dashboards.
   Never commit them.
 
@@ -279,6 +280,7 @@ Other tuning variables (rate limits, limiter waits, watchlist caps) are listed w
 | Signed out on every reload | `NEXT_PUBLIC_API_BASE_URL` isn't `/`, or Vercel wasn't redeployed after setting it |
 | `Request origin not allowed.` on sign-in refresh | The Vercel origin is missing from `CORS_ORIGINS` (exact match, no trailing slash) |
 | Live prices never update | `NEXT_PUBLIC_STREAM_BASE_URL` missing, or the origin not in `CORS_ORIGINS` |
+| Render log: `Finnhub WS … reconnecting in …s` over and over, with short or no connected time | Another process holds the key's single Finnhub WebSocket: a local dev server with streaming on, a second worker, or (briefly) the old instance during a deploy. The log line gives the HTTP status or close code; 401/403 means the key itself is rejected |
 | Pages error with `API_BASE_URL must be set` | Set `API_BASE_URL` on Vercel and redeploy |
 | Workflow fails with 401 | `CRON_SECRET` differs between GitHub and Render |
 | Workflow fails with 404 | `CRON_SECRET` is empty on Render |
