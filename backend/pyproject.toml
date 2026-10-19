@@ -29,3 +29,6 @@ ignore_missing_imports = true
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]
+# HTTP-level tests write SQLite files under tmp_path; delete them when the run ends (pass or fail).
+tmp_path_retention_count = 0
+tmp_path_retention_policy = "none"
