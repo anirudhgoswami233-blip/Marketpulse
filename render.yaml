@@ -5,6 +5,7 @@ services:
     name: marketpulse-api
     runtime: python
     plan: free
+    region: ohio
     rootDir: backend
     buildCommand: pip install -r requirements.txt
     # Free instances have no pre-deploy command, so migrations run right before the server starts. They're
