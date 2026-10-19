@@ -191,3 +191,16 @@ describe("useAuthedQuery", () => {
     await waitFor(() => expect(screen.getByTestId("state").textContent).toBe("2026-10-20"));
   });
 });
+
+describe("BriefTeaser", () => {
+  it("tells signed-in users when the brief can't load instead of hiding it", async () => {
+    const { BriefTeaser } = await import("@/components/signals/BriefTeaser");
+    mockApi({
+      "POST /api/v1/auth/refresh": json(SESSION),
+      "GET /api/v1/brief": json({ detail: "boom" }, 500),
+    });
+    renderWithAuth(<BriefTeaser />);
+    expect(await screen.findByText(/couldn.t be loaded right now/)).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Open the brief" }).getAttribute("href")).toBe("/brief");
+  });
+});

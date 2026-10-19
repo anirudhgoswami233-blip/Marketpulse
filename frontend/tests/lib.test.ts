@@ -119,3 +119,14 @@ describe("apiRequest", () => {
     await expect(apiRequest("/x")).rejects.toBeInstanceOf(ApiError);
   });
 });
+
+describe("serverApiBaseUrl", () => {
+  it("avoids the slow localhost lookup for server-side fetches", async () => {
+    const { serverApiBaseUrl } = await import("@/lib/api");
+    expect(serverApiBaseUrl("http://localhost:8000", undefined)).toBe("http://127.0.0.1:8000");
+    expect(serverApiBaseUrl("http://localhost", undefined)).toBe("http://127.0.0.1");
+    expect(serverApiBaseUrl("https://api.example.com", undefined)).toBe("https://api.example.com");
+    expect(serverApiBaseUrl("http://localhostish.dev:8000", undefined)).toBe("http://localhostish.dev:8000");
+    expect(serverApiBaseUrl("http://localhost:8000", "http://backend:8000")).toBe("http://backend:8000");
+  });
+});

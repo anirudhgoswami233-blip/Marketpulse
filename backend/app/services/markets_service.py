@@ -192,11 +192,17 @@ async def refresh_snapshot(
     cache: CacheBackend,
     currencies: dict[str, str | None],
     config: OverviewConfig | None = None,
+    symbols: list[str] | None = None,
 ) -> OverviewSnapshot:
-    """Fetch every overview quote at background priority. The limiter spreads the calls out."""
+    """Fetch overview quotes at background priority; the limiter spreads the calls out.
+
+    With `symbols`, only those are fetched (a top-up) and the snapshot isn't marked complete, so the scheduled
+    full refresh still runs.
+    """
     config = config or overview_config()
     snapshot = await load_snapshot(cache)
-    symbols = config.all_symbols()
+    partial = symbols is not None
+    symbols = symbols if symbols is not None else config.all_symbols()
     with background_priority():
         for index, symbol in enumerate(symbols, start=1):
             try:
@@ -210,6 +216,14 @@ async def refresh_snapshot(
                 snapshot.updated_at = datetime.now(UTC)
             if index % SAVE_EVERY == 0:
                 await save_snapshot(cache, snapshot)  # let pages show progress during the first warm-up
-    snapshot.completed_at = datetime.now(UTC)
+    if not partial:
+        snapshot.completed_at = datetime.now(UTC)
     await save_snapshot(cache, snapshot)
     return snapshot
+
+
+def missing_brief_symbols(snapshot: OverviewSnapshot, config: OverviewConfig | None = None) -> list[str]:
+    """Regional index proxies and movers the Daily Brief needs that the snapshot doesn't have yet."""
+    config = config or overview_config()
+    needed = [i.symbol for r in config.regions for i in r.indices] + list(config.movers_universe)
+    return [s for s in dict.fromkeys(needed) if s not in snapshot.quotes]

@@ -100,3 +100,24 @@ async def test_should_refresh_skips_when_closed_and_post_close_snapshot_exists()
 
     await save_snapshot(cache, OverviewSnapshot(completed_at=datetime(2026, 10, 16, 19, 0, tzinfo=UTC)))
     assert await markets_service.should_refresh(provider, cache, sunday, timedelta(days=7))  # pre-close data
+
+
+async def test_partial_refresh_tops_up_without_marking_the_snapshot_complete() -> None:
+    cache, provider = MemoryCache(), FakeProvider()
+    for symbol in CONFIG.all_symbols():
+        provider.quotes[symbol] = make_quote(symbol, "10", "1")
+    await save_snapshot(cache, OverviewSnapshot(quotes={"SPY": make_quote("SPY", "600", "1")}))
+
+    missing = markets_service.missing_brief_symbols(await load_snapshot(cache), CONFIG)
+    assert missing == [
+        "INDA",
+        "AAA",
+        "BBB",
+        "CCC",
+        "DDD",
+    ]  # indices + movers; sectors aren't needed for briefs
+    snapshot = await markets_service.refresh_snapshot(provider, cache, {}, CONFIG, symbols=missing)
+
+    assert set(snapshot.quotes) == {"SPY", "INDA", "AAA", "BBB", "CCC", "DDD"}
+    assert snapshot.completed_at is None  # the scheduled full refresh still runs
+    assert markets_service.missing_brief_symbols(snapshot, CONFIG) == []

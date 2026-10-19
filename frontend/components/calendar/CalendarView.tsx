@@ -6,7 +6,9 @@ import { useState } from "react";
 import { Card, EmptyState, SkeletonBlock } from "@/components/ui/primitives";
 import { ErrorState, StaleBadge } from "@/components/ui/status";
 import { useAuth } from "@/lib/auth";
+import { todayIn, viewerTimeZone } from "@/lib/dates";
 import { formatCompact, formatDate, formatNumber, formatPct, formatPrice } from "@/lib/format";
+import { useHydrated } from "@/lib/hooks";
 import { useAuthedQuery } from "@/lib/useAuthedQuery";
 import type { EarningsRow, EarningsSession, EarningsWeek, IpoWeek } from "@/types/api";
 
@@ -26,9 +28,20 @@ export function shiftDate(iso: string, days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-export function CalendarView({ initialTab, initialWeek }: { initialTab: "earnings" | "ipos"; initialWeek: string }) {
+/**
+ * `initialWeek` comes from the URL (?week=). Without one, the default is the week containing *today in the
+ * viewer's timezone* (their profile setting, or the browser's when signed out). That's only knowable in the
+ * browser, so it's worked out after hydration and the calendar shows a skeleton until then.
+ */
+export function CalendarView({ initialTab, initialWeek }: { initialTab: "earnings" | "ipos"; initialWeek: string | null }) {
   const [tab, setTab] = useState(initialTab);
-  const [week, setWeek] = useState(initialWeek);
+  // null = "the current week", recomputed rather than stored so "This week" stays correct.
+  const [chosenWeek, setChosenWeek] = useState<string | null>(initialWeek);
+  const { status, user } = useAuth();
+  const hydrated = useHydrated();
+  const timeZone = hydrated && status !== "loading" ? viewerTimeZone(user?.timezone) : null;
+  const week = chosenWeek ?? (timeZone ? todayIn(timeZone) : null);
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -47,18 +60,30 @@ export function CalendarView({ initialTab, initialWeek }: { initialTab: "earning
           ))}
         </div>
         <div className="flex items-center gap-2 text-sm">
-          <button type="button" onClick={() => setWeek(shiftDate(week, -7))} className="rounded-md border border-border px-2 py-1 text-secondary hover:text-primary" aria-label="Previous week">
+          <button type="button" disabled={!week} onClick={() => week && setChosenWeek(shiftDate(week, -7))} className="rounded-md border border-border px-2 py-1 text-secondary hover:text-primary disabled:opacity-50" aria-label="Previous week">
             ←
           </button>
-          <button type="button" onClick={() => setWeek(new Date().toISOString().slice(0, 10))} className="rounded-md border border-border px-2 py-1 text-xs text-secondary hover:text-primary">
+          <button type="button" disabled={!week} onClick={() => setChosenWeek(null)} className="rounded-md border border-border px-2 py-1 text-xs text-secondary hover:text-primary disabled:opacity-50">
             This week
           </button>
-          <button type="button" onClick={() => setWeek(shiftDate(week, 7))} className="rounded-md border border-border px-2 py-1 text-secondary hover:text-primary" aria-label="Next week">
+          <button type="button" disabled={!week} onClick={() => week && setChosenWeek(shiftDate(week, 7))} className="rounded-md border border-border px-2 py-1 text-secondary hover:text-primary disabled:opacity-50" aria-label="Next week">
             →
           </button>
         </div>
       </div>
-      {tab === "earnings" ? <Earnings week={week} /> : <Ipos week={week} />}
+      {timeZone && chosenWeek === null && (
+        <p className="text-xs text-muted">
+          Showing the current week for today in {timeZone}
+          {user?.timezone ? " (from your profile)" : " (from your browser)"}.
+        </p>
+      )}
+      {!week ? (
+        <SkeletonBlock lines={8} label="Loading calendar" />
+      ) : tab === "earnings" ? (
+        <Earnings week={week} />
+      ) : (
+        <Ipos week={week} />
+      )}
     </div>
   );
 }

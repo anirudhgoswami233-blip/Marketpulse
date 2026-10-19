@@ -3,6 +3,7 @@
 import Link from "next/link";
 
 import { SignalBadge } from "@/components/signals/SignalCard";
+import { Skeleton } from "@/components/ui/primitives";
 import { useAuth } from "@/lib/auth";
 import { formatDate } from "@/lib/format";
 import { useAuthedQuery } from "@/lib/useAuthedQuery";
@@ -13,7 +14,7 @@ const LABELS: SignalLabel[] = ["Bullish signals", "Bearish signals", "Neutral"];
 /** A one-line pointer to the user's Daily Brief on the markets overview. */
 export function BriefTeaser() {
   const { status } = useAuth();
-  if (status === "loading") return null;
+  if (status === "loading") return <Skeleton className="h-12 w-full" />;
   if (status === "anonymous") {
     return (
       <p className="rounded-lg border border-dashed border-border px-4 py-3 text-sm text-secondary">
@@ -29,7 +30,17 @@ export function BriefTeaser() {
 
 function SignedInTeaser() {
   const { state } = useAuthedQuery<BriefStatus>("/api/v1/brief");
-  if (state.kind !== "ready") return null;
+  if (state.kind === "loading") return <Skeleton className="h-12 w-full" />;
+  if (state.kind === "error") {
+    return (
+      <p role="status" className="rounded-lg border border-border px-4 py-3 text-sm text-secondary">
+        Your Daily Brief couldn&apos;t be loaded right now.{" "}
+        <Link href="/brief" className="text-accent hover:underline">
+          Open the brief
+        </Link>
+      </p>
+    );
+  }
   const brief = state.data.brief;
   return (
     <Link

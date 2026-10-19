@@ -12,7 +12,7 @@ request is deferred.
 | 3 | Auth, watchlists, paper trading | Done |
 | 4 | Signal engine, Daily Brief, Signal History | Done |
 | 5 | Forex & metals, macro dashboard, earnings/IPO calendar | Done |
-| 6 | Polish, performance, README, test gaps | Not started |
+| 6 | Polish, performance, README, test gaps | Done |
 
 ## Deferred requests
 
@@ -29,14 +29,21 @@ request is deferred.
   is skipped for now: no provider and no new dependency. The `BriefWriter` hook in
   `services/brief_service.py` stays, so an LLM writer can be added later without touching the job.
 
-### Phase 6
-- **Twelve Data budget is shared across servers.** Each backend process has its own 750/day limiter, but the
-  vendor counts 800/day per key. Two servers on one key (e.g. a dev server plus a test server) can overspend.
-  With Redis configured the limiter is shared; consider requiring Redis outside dev.
-- **Long header nav.** Nine links now wrap on medium screens; consider grouping (Markets / Forex / Macro /
-  Calendar vs. My stuff).
-- **Brief overnight section needs the market snapshot.** A brief generated before the overview snapshot job
-  has run (e.g. right after a server start) shows "n/a" for regions and no trending symbols. Consider
-  warming the snapshot first or letting the brief job fetch the regional ETF quotes itself.
-- **Dev-mode page loads feel slow.** Investigate and improve as part of polish. Measure the production build
-  (`npm run build && npm start`) separately from `next dev`, since dev mode compiles routes on demand.
+### Phase 6 (done 2026-10-19)
+- ~~Twelve Data budget shared across servers~~: the backend now refuses to start outside dev without
+  `REDIS_URL` (`check_shared_state` in `container.py`), and warns in dev.
+- ~~Long header nav~~: grouped into Markets (Markets / Forex / Macro / Calendar) and Your tools (Watchlists /
+  Portfolio / Brief / Signals), with the current page highlighted. Below `lg` it collapses into a Menu button.
+- ~~Brief overnight section needs the snapshot~~: the brief job fetches any regional ETF proxies and movers
+  missing from the snapshot first (background priority, partial refresh).
+- ~~Dev-mode slowness~~: the cause was Windows resolving `localhost` to IPv6 first, which added ~200 ms to
+  every new connection. Server-side fetches now default to 127.0.0.1, bringing backend calls from ~220 ms
+  to under 10 ms. The remaining first-visit delay is `next dev` compiling the route (1–2 s once).
+- Calendar's default week uses the viewer's timezone (profile, or the browser when signed out). The week is
+  worked out on the client, so the server never reads the clock.
+- Phone-width check (375 px): no page scrolls sideways. Wide tables scroll inside their cards.
+- README, `docker-compose.yml` (optional Postgres + Redis), loading/error states on the brief teaser.
+
+### Possible next steps (not requested)
+- LLM-written brief through the existing `BriefWriter` hook.
+- A paid data plan would unlock non-US quotes, real index levels and silver/platinum/palladium.

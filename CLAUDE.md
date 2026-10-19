@@ -50,7 +50,8 @@ cd frontend && npm install
 cd frontend && npm run dev
 cd frontend && npm run lint && npm run typecheck && npm test
 cd frontend && npm run build   # also enforces Cache Components rules (uncached data must sit in <Suspense>)
-# services (optional in dev: leave REDIS_URL empty for the in-memory cache/limiter, SQLite is the default DB)
+# services (optional in dev: leave REDIS_URL empty for the in-memory cache/limiter, SQLite is the default DB;
+# Redis is required outside dev so all processes share one rate limiter). Compose file: docker-compose.yml
 docker compose up -d postgres redis
 ```
 Update this section if commands change.

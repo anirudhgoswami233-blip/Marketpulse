@@ -21,12 +21,18 @@ import type {
 
 const PUBLIC_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
-/** Server-side rendering may reach the backend at a different address than the browser. */
+/**
+ * Server-side rendering may reach the backend at a different address than the browser. By default it uses
+ * 127.0.0.1 instead of "localhost": on Windows, Node resolves localhost to IPv6 (::1) first, and uvicorn listens
+ * on IPv4 only, so every new connection waited ~150-200 ms for the fallback.
+ */
+export function serverApiBaseUrl(publicBase: string = PUBLIC_BASE, override = process.env.API_BASE_URL): string {
+  if (override) return override;
+  return publicBase.replace(/^(https?:\/\/)localhost(?=[:/]|$)/, (_match, scheme: string) => `${scheme}127.0.0.1`);
+}
+
 export function apiBaseUrl(): string {
-  if (typeof window === "undefined") {
-    return process.env.API_BASE_URL || PUBLIC_BASE;
-  }
-  return PUBLIC_BASE;
+  return typeof window === "undefined" ? serverApiBaseUrl() : PUBLIC_BASE;
 }
 
 export class ApiError extends Error {

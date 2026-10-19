@@ -155,3 +155,12 @@ async def test_sse_events_subscribe_stream_and_release() -> None:
 def test_provider_unavailable_class_is_importable() -> None:
     # Guards the error mapping used by the UI ("unavailable" means not on our data plan).
     assert issubclass(ProviderUnavailable, Exception)
+
+
+def test_shared_limiter_is_required_outside_dev() -> None:
+    from app.container import check_shared_state
+
+    with pytest.raises(RuntimeError, match="REDIS_URL must be set"):
+        check_shared_state(make_settings(env="prod", redis_url=""))
+    check_shared_state(make_settings(env="prod", redis_url="redis://localhost:6379/0"))
+    check_shared_state(make_settings(env="dev", redis_url=""))  # allowed, with a warning

@@ -6,7 +6,7 @@ import nextTs from "eslint-config-next/typescript";
 // ("Blocking Route ... unstable value new Date()"). Route files must read it after `await connection()`.
 const clockReadMessage =
   "Reading the current time in a route prerenders a build-time value. Call `await connection()` first " +
-  "(see app/calendar/page.tsx), or read the clock in a client effect/event handler.";
+  "(see the Next docs: functions/connection), or read the clock in a client effect/event handler.";
 
 const eslintConfig = defineConfig([
   ...nextVitals,

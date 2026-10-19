@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 import { AuthNav } from "@/components/auth/AuthNav";
+import { MainNav } from "@/components/layout/MainNav";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { SearchBox } from "@/components/search/SearchBox";
 import { Skeleton } from "@/components/ui/primitives";
@@ -33,36 +34,14 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="flex min-h-full flex-col">
         <AuthProvider>
           <header className="sticky top-0 z-30 border-b border-border bg-bg/90 backdrop-blur">
-            <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-3 px-4 py-3">
+            <div className="relative mx-auto flex max-w-7xl flex-wrap items-center gap-3 px-4 py-3">
               <Link href="/" className="text-lg font-bold tracking-tight text-primary">
                 Market<span className="text-accent">Pulse</span>
               </Link>
-              <nav aria-label="Main" className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-secondary">
-                <Link href="/" className="hover:text-primary">
-                  Markets
-                </Link>
-                <Link href="/forex" className="hover:text-primary">
-                  Forex
-                </Link>
-                <Link href="/macro" className="hover:text-primary">
-                  Macro
-                </Link>
-                <Link href="/calendar" className="hover:text-primary">
-                  Calendar
-                </Link>
-                <Link href="/watchlists" className="hover:text-primary">
-                  Watchlists
-                </Link>
-                <Link href="/portfolio" className="hover:text-primary">
-                  Portfolio
-                </Link>
-                <Link href="/brief" className="hover:text-primary">
-                  Brief
-                </Link>
-                <Link href="/signals" className="hover:text-primary">
-                  Signals
-                </Link>
-              </nav>
+              {/* MainNav highlights the current route (usePathname), which is request-time data on dynamic routes. */}
+              <Suspense fallback={<Skeleton className="h-8 w-24" />}>
+                <MainNav />
+              </Suspense>
               <div className="order-last w-full sm:order-none sm:ml-auto sm:flex sm:w-auto sm:flex-1 sm:justify-end">
                 <SearchBox />
               </div>

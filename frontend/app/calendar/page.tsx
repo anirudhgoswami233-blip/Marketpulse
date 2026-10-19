@@ -1,4 +1,3 @@
-import { connection } from "next/server";
 import { Suspense } from "react";
 
 import { CalendarView } from "@/components/calendar/CalendarView";
@@ -24,14 +23,8 @@ async function WithParams({ searchParams }: { searchParams: PageProps<"/calendar
   const params = await searchParams;
   const tab = params.tab === "ipos" ? "ipos" : "earnings";
   const raw = Array.isArray(params.week) ? params.week[0] : params.week;
-  const week = raw && /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : await currentWeekDate();
+  // No ?week= means "the current week in the viewer's timezone", which only the browser can work out, so the
+  // server never reads the clock here.
+  const week = raw && /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : null;
   return <CalendarView initialTab={tab} initialWeek={week} />;
-}
-
-/** Today's date (UTC, YYYY-MM-DD) as the default week. Reading the clock must wait for the request under
- * Cache Components, otherwise prerendering would bake in the build-time date. */
-async function currentWeekDate(): Promise<string> {
-  await connection();
-  // eslint-disable-next-line no-restricted-syntax -- safe: runs at request time, after connection()
-  return new Date().toISOString().slice(0, 10);
 }

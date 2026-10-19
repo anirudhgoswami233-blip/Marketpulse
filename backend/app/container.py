@@ -73,7 +73,24 @@ class Container:
         await self.engine.dispose()
 
 
+def check_shared_state(settings: Settings) -> None:
+    """Rate limits and the Twelve Data daily budget are per API key at the vendor, so every backend process
+    must share one limiter (Redis). The in-process fallback is only acceptable for a single dev server."""
+    if settings.redis_url:
+        return
+    if settings.env != "dev":
+        raise RuntimeError(
+            "REDIS_URL must be set outside development: without it each process keeps its own rate limiter, "
+            "and several processes on one API key can exceed the vendors' limits."
+        )
+    logger.warning(
+        "REDIS_URL is not set: using an in-process cache and rate limiter. Run only one backend per set of "
+        "API keys, or the processes' combined calls can exceed Finnhub's and Twelve Data's limits."
+    )
+
+
 def build_container(settings: Settings) -> Container:
+    check_shared_state(settings)
     cache = build_cache(settings.redis_url)
     clients: list[httpx.AsyncClient] = []
 

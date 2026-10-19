@@ -14,7 +14,7 @@ from app.container import Container
 from app.core.errors import AppError, ProviderError
 from app.core.ratelimit import background_priority
 from app.models import SignalRecord, User
-from app.services import brief_service, signal_service
+from app.services import brief_service, markets_service, signal_service
 from app.services.brief_service import BriefSymbol, TemplateWriter
 from app.services.email_service import email_configured, send_email
 
@@ -44,11 +44,23 @@ async def compute_signals(
     return signals
 
 
+async def ensure_market_context(container: Container) -> None:
+    """Briefs describe the last session through the overview snapshot (regional ETFs, movers). Right after a
+    restart it may be empty, so fetch just the missing quotes first, at background priority."""
+    snapshot = await markets_service.load_snapshot(container.cache)
+    missing = markets_service.missing_brief_symbols(snapshot)
+    if not missing:
+        return
+    logger.info("Brief: fetching %d missing market-snapshot quotes first", len(missing))
+    await markets_service.refresh_snapshot(container.providers.quotes, container.cache, {}, symbols=missing)
+
+
 async def generate_for(container: Container, users: Sequence[User], now: datetime | None = None) -> int:
     """Build briefs for `users`. Returns how many were built."""
     now = now or datetime.now(UTC)
     writer = TemplateWriter()
     built = 0
+    await ensure_market_context(container)
     async with container.session_factory() as session:
         per_user = {u.id: await brief_service.brief_symbols(session, container.cache, u) for u in users}
         all_symbols = [s for entries in per_user.values() for s in entries]

@@ -198,3 +198,48 @@ describe("CalendarView", () => {
     expect(shiftDate("2026-12-29", 7)).toBe("2027-01-05");
   });
 });
+
+describe("calendar default week uses the viewer's timezone", () => {
+  // Sunday 25 Oct 20:00 UTC is already Monday 26 Oct in India: a different calendar week.
+  const SUNDAY_EVENING_UTC = new Date("2026-10-25T20:00:00Z");
+
+  it("todayIn() returns the local calendar date", async () => {
+    const { todayIn, viewerTimeZone } = await import("@/lib/dates");
+    expect(todayIn("UTC", SUNDAY_EVENING_UTC)).toBe("2026-10-25");
+    expect(todayIn("Asia/Kolkata", SUNDAY_EVENING_UTC)).toBe("2026-10-26");
+    expect(todayIn("America/New_York", SUNDAY_EVENING_UTC)).toBe("2026-10-25");
+    expect(viewerTimeZone("Asia/Kolkata")).toBe("Asia/Kolkata");
+    expect(viewerTimeZone("Not/AZone")).toBe(Intl.DateTimeFormat().resolvedOptions().timeZone);
+    expect(viewerTimeZone(null)).toBe(Intl.DateTimeFormat().resolvedOptions().timeZone);
+  });
+
+  it("signed-in users get the week from their profile timezone", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ["Date"] });
+    vi.setSystemTime(SUNDAY_EVENING_UTC);
+    try {
+      const { fetchMock } = mockApi({
+        "POST /api/v1/auth/refresh": json({ ...SESSION, user: { ...SESSION.user, timezone: "Asia/Kolkata" } }),
+        "GET /api/v1/calendar/earnings": json({ ...WEEK, week_start: "2026-10-26", week_end: "2026-11-01", events: [] }),
+      });
+      renderWithAuth(<CalendarView initialTab="earnings" initialWeek={null} />);
+      expect(await screen.findByText(/today in Asia\/Kolkata \(from your profile\)/)).toBeTruthy();
+      await waitFor(() =>
+        expect(fetchMock.mock.calls.some(([url]) => String(url).includes("week=2026-10-26"))).toBe(true),
+      );
+      expect(fetchMock.mock.calls.some(([url]) => String(url).includes("week=2026-10-25"))).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("signed-out visitors get the browser's timezone, and an explicit ?week= wins", async () => {
+    const { fetchMock } = mockApi({ ...anonymous, "GET /api/v1/calendar/earnings": json(WEEK) });
+    renderWithAuth(<CalendarView initialTab="earnings" initialWeek={null} />);
+    expect(await screen.findByText(/\(from your browser\)/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Next week" }));
+    await waitFor(() => expect(screen.queryByText(/from your browser/)).toBeNull()); // explicit week chosen
+    fireEvent.click(screen.getByRole("button", { name: "This week" }));
+    expect(await screen.findByText(/\(from your browser\)/)).toBeTruthy();
+    expect(fetchMock).toHaveBeenCalled();
+  });
+});
