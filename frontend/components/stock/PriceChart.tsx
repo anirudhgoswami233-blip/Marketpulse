@@ -8,6 +8,7 @@ import { ErrorState, StaleBadge } from "@/components/ui/status";
 import { api, toApiError, type ApiError } from "@/lib/api";
 import { CHART_RANGES, INTRADAY_RANGES, rangeChange, toChartPoints } from "@/lib/chart";
 import { formatPrice } from "@/lib/format";
+import { subscribeTheme } from "@/lib/theme";
 import type { Chart, ChartRange, Envelope } from "@/types/api";
 
 type Result = { kind: "ready"; chart: Envelope<Chart> } | { kind: "error"; error: ApiError };
@@ -146,15 +147,14 @@ function ChartCanvas({ chart, currency }: { chart: Chart; currency: string | nul
       setHover({ label, value: point.value });
     });
 
-    // Restyle when the user toggles light/dark mode.
-    const observer = new MutationObserver(() => {
+    // Restyle when the user toggles the theme or the OS switches between light and dark.
+    const unsubscribeTheme = subscribeTheme(() => {
       instance.applyOptions(theme());
       series.applyOptions({ lineColor: cssVar("--chart-line"), topColor: cssVar("--chart-fill") });
     });
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
 
     return () => {
-      observer.disconnect();
+      unsubscribeTheme();
       instance.remove();
     };
   }, [chart, intraday]);

@@ -1,7 +1,20 @@
 @import "tailwindcss";
 
-/* Theme is driven by data-theme on <html> (dark by default, set before paint by the inline script in layout). */
-@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+/*
+ * Theme: an explicit choice (data-theme on <html>, set from localStorage before paint) wins; with no choice
+ * we follow the OS via prefers-color-scheme. The dark tokens appear twice (media query + explicit choice)
+ * because CSS can't share one rule between a media query and a selector.
+ */
+@custom-variant dark {
+  &:where([data-theme="dark"], [data-theme="dark"] *) {
+    @slot;
+  }
+  @media (prefers-color-scheme: dark) {
+    &:where(:root:not([data-theme="light"]), :root:not([data-theme="light"]) *) {
+      @slot;
+    }
+  }
+}
 
 :root,
 [data-theme="light"] {
@@ -32,6 +45,36 @@
   --div-mid: #f0efec;
   --on-div-strong: #ffffff;
   --on-div-soft: #0b0b0b;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #121211;
+    --surface: #1a1a19;
+    --surface-2: #242422;
+    --border: #2e2e2b;
+    --text-primary: #f0efec;
+    --text-secondary: #c3c2b7;
+    --text-muted: #a3a296;
+    --accent: #6da7ec;
+    --up: #4cc94c;
+    --down: #ff7b72;
+    --chart-line: #3987e5;
+    --chart-fill: rgba(57, 135, 229, 0.18);
+    --chart-grid: #262624;
+    --div-up-1: #1f3550;
+    --div-up-2: #184f95;
+    --div-up-3: #2a78d6;
+    --div-up-4: #5598e7;
+    --div-down-1: #4a2523;
+    --div-down-2: #8f2f2c;
+    --div-down-3: #c43d3b;
+    --div-down-4: #e66767;
+    --div-mid: #383835;
+    --on-div-strong: #0b0b0b;
+    --on-div-soft: #f0efec;
+  }
 }
 
 [data-theme="dark"] {

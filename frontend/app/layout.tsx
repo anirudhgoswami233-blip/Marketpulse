@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
 
-import { ThemeToggle, themeInitScript } from "@/components/layout/ThemeToggle";
+import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { SearchBox } from "@/components/search/SearchBox";
+import { themeInitScript } from "@/lib/theme";
 
 import "./globals.css";
 
@@ -19,7 +20,6 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      data-theme="dark"
       suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
