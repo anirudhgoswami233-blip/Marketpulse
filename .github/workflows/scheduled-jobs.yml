@@ -1,0 +1,63 @@
+# Render's free tier sleeps after ~15 idle minutes, which pauses the backend's in-process scheduler. This
+# wakes the API every hour and starts the Daily Brief and signal-outcome jobs, then waits for them so a failed
+# run shows up here. Briefs are only built for users whose local brief time has passed, so running hourly is
+# safe. While the server is awake, its own 5-minute scheduler also catches due briefs.
+#
+# Repository secrets: MARKETPULSE_API_URL (e.g. https://marketpulse-api.onrender.com) and CRON_SECRET
+# (copy it from the Render service's Environment tab).
+name: Scheduled jobs
+
+on:
+  schedule:
+    # Hourly, Sunday to Friday (UTC). Sunday covers Monday-morning briefs in Asia/Pacific timezones.
+    - cron: "5 * * * 0-5"
+  workflow_dispatch:
+
+concurrency:
+  group: scheduled-jobs
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Trigger and wait for the jobs
+        env:
+          API_URL: ${{ secrets.MARKETPULSE_API_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -euo pipefail
+          if [ -z "${API_URL}" ] || [ -z "${CRON_SECRET}" ]; then
+            echo "::error::Set the MARKETPULSE_API_URL and CRON_SECRET repository secrets."
+            exit 1
+          fi
+          api="${API_URL%/}/api/v1/internal/jobs"
+          auth="Authorization: Bearer ${CRON_SECRET}"
+
+          # A sleeping free instance takes up to about a minute to wake. Retry connection errors and 5xx only,
+          # so a wrong secret (401) fails at once.
+          curl --fail-with-body -sS --retry 8 --retry-delay 15 --retry-connrefused --max-time 90             -X POST -H "$auth" "$api/run"
+          echo
+
+          # Poll until both jobs are idle (this also keeps the instance awake while they run).
+          for _ in $(seq 1 40); do
+            sleep 30
+            curl --fail-with-body -sS --retry 3 --retry-delay 10 --retry-connrefused --max-time 60               -H "$auth" "$api" > status.json
+            if python3 -c 'import json,sys; sys.exit(any(j["running"] for j in json.load(open("status.json"))["jobs"]))'; then
+              break
+            fi
+          done
+
+          python3 - <<'PY'
+          import json, sys
+          jobs = json.load(open("status.json"))["jobs"]
+          for job in jobs:
+              print(f"{job['name']}: running={job['running']} started={job['last_started']} "
+                    f"finished={job['last_finished']} error={job['last_error']}")
+          if any(j["running"] for j in jobs):
+              print("::warning::Jobs are still running after 20 minutes; the next run will report their result.")
+          elif failed := [f"{j['name']} ({j['last_error']})" for j in jobs if j["last_error"]]:
+              print(f"::error::Job failed: {', '.join(failed)}. See the Render logs.")
+              sys.exit(1)
+          PY

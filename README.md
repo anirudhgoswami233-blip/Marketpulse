@@ -61,6 +61,11 @@ Then set `DATABASE_URL` and `REDIS_URL` in `backend/.env` (see the comments in `
 `alembic upgrade head` again. **Redis is required outside dev** (`ENV` other than `dev`). Without it, each
 backend process would keep its own rate-limit counters and overspend the shared vendor quotas.
 
+## Deploying
+
+[DEPLOY.md](DEPLOY.md) walks through a free-tier production setup: Vercel (frontend), Render (backend),
+Neon (Postgres), Upstash (Redis), and a GitHub Actions schedule that runs the daily jobs while Render sleeps.
+
 ## Checks
 
 ```bash

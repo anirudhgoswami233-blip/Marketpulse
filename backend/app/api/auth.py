@@ -39,7 +39,7 @@ def _token_out(issued: IssuedSession) -> TokenOut:
 def _check_origin(request: Request, settings: Settings) -> None:
     """Cookie-authenticated endpoints only accept requests from our own frontend (CSRF defence in depth)."""
     origin = request.headers.get("origin")
-    if origin is not None and origin not in settings.cors_origins:
+    if origin is not None and not settings.origin_allowed(origin):
         raise AppError("Request origin not allowed.", code="bad_origin", status=403)
 
 

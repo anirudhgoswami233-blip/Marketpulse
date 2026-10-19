@@ -5,7 +5,8 @@ from datetime import UTC, datetime
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from app.container import Container
-from app.jobs import daily_brief, forex_snapshot, market_snapshot, signal_outcomes
+from app.jobs import forex_snapshot, market_snapshot
+from app.jobs.runner import run_exclusive
 
 
 def build_scheduler(container: Container) -> AsyncIOScheduler:
@@ -22,19 +23,19 @@ def build_scheduler(container: Container) -> AsyncIOScheduler:
     )
     # Checks every 5 minutes for users whose local brief time has passed.
     scheduler.add_job(
-        daily_brief.run,
+        run_exclusive,
         "interval",
         minutes=5,
-        args=[container],
+        args=[container, "daily_brief"],
         id="daily_brief",
         max_instances=1,
         coalesce=True,
     )
     scheduler.add_job(
-        signal_outcomes.run,
+        run_exclusive,
         "interval",
         hours=1,
-        args=[container],
+        args=[container, "signal_outcomes"],
         id="signal_outcomes",
         next_run_time=datetime.now(UTC),
         max_instances=1,

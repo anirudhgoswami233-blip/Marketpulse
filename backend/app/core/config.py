@@ -1,11 +1,28 @@
+import re
 from decimal import Decimal
 from functools import lru_cache
 from pathlib import Path
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
-from pydantic import SecretStr
+from pydantic import SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BACKEND_DIR = Path(__file__).resolve().parents[2]
+
+
+def normalize_database_url(url: str) -> str:
+    """Hosted Postgres (Neon, Render) hands out libpq URLs such as
+    `postgresql://u:p@host/db?sslmode=require&channel_binding=require`. SQLAlchemy needs the asyncpg driver
+    named in the scheme, and asyncpg spells TLS `ssl=` and has no `channel_binding` option."""
+    parts = urlsplit(url)
+    if parts.scheme not in ("postgres", "postgresql", "postgresql+asyncpg"):
+        return url
+    query = [
+        ("ssl" if key == "sslmode" else key, value)
+        for key, value in parse_qsl(parts.query, keep_blank_values=True)
+        if key != "channel_binding"
+    ]
+    return urlunsplit(parts._replace(scheme="postgresql+asyncpg", query=urlencode(query)))
 
 
 class Settings(BaseSettings):
@@ -16,6 +33,9 @@ class Settings(BaseSettings):
     env: str = "dev"
     log_level: str = "INFO"
     cors_origins: list[str] = ["http://localhost:3000"]
+    # Optional regex for extra allowed origins, e.g. Vercel preview deployments:
+    # ^https://marketpulse-[a-z0-9-]+-yourteam\.vercel\.app$
+    cors_origin_regex: str = ""
 
     finnhub_api_key: SecretStr | None = None
     twelvedata_api_key: SecretStr | None = None
@@ -26,6 +46,9 @@ class Settings(BaseSettings):
     # Empty means: use the in-process cache and rate limiter (single-process dev only).
     redis_url: str = ""
     jwt_secret: SecretStr | None = None
+    # Bearer secret for /api/v1/internal/jobs (an external scheduler wakes a sleeping host to run jobs).
+    # Unset disables those endpoints.
+    cron_secret: SecretStr | None = None
 
     # Rate limits sit below each vendor's published free-tier ceiling to leave headroom.
     finnhub_calls_per_minute: int = 50
@@ -72,6 +95,16 @@ class Settings(BaseSettings):
     smtp_password: SecretStr | None = None
     smtp_from: str = ""
 
+    @field_validator("database_url")
+    @classmethod
+    def _normalize_database_url(cls, value: str) -> str:
+        return normalize_database_url(value)
+
+    def origin_allowed(self, origin: str) -> bool:
+        if origin in self.cors_origins:
+            return True
+        return bool(self.cors_origin_regex) and re.fullmatch(self.cors_origin_regex, origin) is not None
+
     def secret_values(self) -> list[str]:
         """Every configured secret, for log redaction."""
         secrets = [
@@ -80,6 +113,7 @@ class Settings(BaseSettings):
             self.fred_api_key,
             self.llm_api_key,
             self.jwt_secret,
+            self.cron_secret,
             self.smtp_password,
         ]
         return [s.get_secret_value() for s in secrets if s and s.get_secret_value()]

@@ -73,7 +73,8 @@ Update this section if commands change.
 
 ## Secrets & config
 - All keys live in `.env` (gitignored). Keep `.env.example` updated with every new variable.
-- Vars: `FINNHUB_API_KEY`, `TWELVEDATA_API_KEY`, `FRED_API_KEY`, `DATABASE_URL`, `REDIS_URL`, `JWT_SECRET`, optional `LLM_API_KEY`, `SMTP_*`.
+- Vars: `FINNHUB_API_KEY`, `TWELVEDATA_API_KEY`, `FRED_API_KEY`, `DATABASE_URL`, `REDIS_URL`, `JWT_SECRET`, `CRON_SECRET`, `CORS_ORIGINS`/`CORS_ORIGIN_REGEX`, `ENV`, optional `LLM_API_KEY`, `SMTP_*`. Frontend: `NEXT_PUBLIC_API_BASE_URL`, `API_BASE_URL`, `NEXT_PUBLIC_STREAM_BASE_URL`.
+- **Deployment** (DEPLOY.md, render.yaml): Vercel proxies `/api/v1/*` to Render (`NEXT_PUBLIC_API_BASE_URL=/`) so the refresh cookie stays first-party; SSE goes direct. Migrations run in Render's start command. Render's free tier sleeps, so `.github/workflows/scheduled-jobs.yml` calls `/api/v1/internal/jobs/run` (Bearer `CRON_SECRET`) hourly; jobs run through `jobs/runner.run_exclusive`, shared with the in-process scheduler so they never overlap.
 - Never log, print, commit, or return an API key in a response. Never put keys in frontend code or `NEXT_PUBLIC_*` vars.
 - **Auth model:** 15-min JWT access token kept in memory only (never localStorage); rotating opaque refresh token in an httpOnly SameSite=Lax cookie scoped to `/api/v1/auth`, stored hashed. Reuse of a rotated token >30s after rotation revokes all the user's sessions. Protected routes use the `CurrentUser` dependency; every watchlist/portfolio query is scoped to the owner (other users' resources return 404).
 - **Paper trading:** Decimal math in `services/portfolio_math.py` (pure). Orders use optimistic concurrency on `portfolios.version` (works on SQLite and Postgres); refuse orders on stale quotes. After `session.rollback()` re-load objects explicitly (`await session.refresh(...)`): lazy loads crash in async code.

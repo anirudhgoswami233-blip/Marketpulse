@@ -19,7 +19,15 @@ import type {
   SymbolInfo,
 } from "@/types/api";
 
-const PUBLIC_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+const trimBase = (url: string) => url.replace(/\/+$/, "");
+
+/**
+ * Where the browser sends API calls. "/" means this site itself: in production, Vercel proxies /api/v1/* to the
+ * backend (next.config.ts), so the refresh cookie is first-party. A backend on another site would never get it.
+ */
+const PUBLIC_BASE = trimBase(process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000");
+/** Live prices skip the proxy (it isn't meant for long-lived streams) and go straight to the backend. */
+const STREAM_BASE = trimBase(process.env.NEXT_PUBLIC_STREAM_BASE_URL ?? "");
 
 /**
  * Server-side rendering may reach the backend at a different address than the browser. By default it uses
@@ -27,7 +35,10 @@ const PUBLIC_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:80
  * on IPv4 only, so every new connection waited ~150-200 ms for the fallback.
  */
 export function serverApiBaseUrl(publicBase: string = PUBLIC_BASE, override = process.env.API_BASE_URL): string {
-  if (override) return override;
+  if (override) return trimBase(override);
+  if (!publicBase) {
+    throw new Error('API_BASE_URL must be set when NEXT_PUBLIC_API_BASE_URL is "/" (the server needs the backend URL).');
+  }
   return publicBase.replace(/^(https?:\/\/)localhost(?=[:/]|$)/, (_match, scheme: string) => `${scheme}127.0.0.1`);
 }
 
@@ -138,8 +149,8 @@ export const api = {
     apiGet<Envelope<Chart>>(`/api/v1/stocks/${enc(symbol)}/chart?range=${range}`, init),
 };
 
-export function streamUrl(symbols: string[]): string {
-  return `${apiBaseUrl()}/api/v1/stream?symbols=${symbols.map(enc).join(",")}`;
+export function streamUrl(symbols: string[], streamBase: string = STREAM_BASE): string {
+  return `${streamBase || apiBaseUrl()}/api/v1/stream?symbols=${symbols.map(enc).join(",")}`;
 }
 
 /** Turn any thrown value into an ApiError so UI components can render it consistently. */

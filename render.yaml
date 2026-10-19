@@ -1,0 +1,46 @@
+# Render Blueprint for the MarketPulse API (free web service). See DEPLOY.md.
+# Postgres is on Neon and Redis on Upstash, so their URLs are entered in the Render dashboard (sync: false).
+services:
+  - type: web
+    name: marketpulse-api
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    # Free instances have no pre-deploy command, so migrations run right before the server starts. They're
+    # idempotent: an up-to-date database is a no-op. --proxy-headers makes the client IP (used by the login
+    # lockout) and https scheme come from Render's proxy.
+    startCommand: alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips="*"
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.10
+      - key: ENV
+        value: production
+      - key: COOKIE_SECURE
+        value: "true"
+      # Upstash's free plan has a monthly command quota; refreshing the overview less often keeps well inside
+      # it. Live prices still come over the WebSocket.
+      - key: OVERVIEW_REFRESH_OPEN_S
+        value: "600"
+      - key: OVERVIEW_REFRESH_CLOSED_S
+        value: "3600"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CRON_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: CORS_ORIGIN_REGEX
+        sync: false
+      - key: FINNHUB_API_KEY
+        sync: false
+      - key: TWELVEDATA_API_KEY
+        sync: false
+      - key: FRED_API_KEY
+        sync: false

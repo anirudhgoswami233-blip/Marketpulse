@@ -6,7 +6,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api import auth, markets, portfolio, signals, stocks, stream, system, world
+from app.api import auth, internal, markets, portfolio, signals, stocks, stream, system, world
 from app.container import build_container
 from app.core.config import Settings, get_settings
 from app.core.errors import (
@@ -46,6 +46,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
+        allow_origin_regex=settings.cors_origin_regex or None,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -58,6 +59,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(portfolio.router)
     app.include_router(signals.router)
     app.include_router(world.router)
+    app.include_router(internal.router)
 
     @app.exception_handler(AppError)
     async def app_error_handler(request: Request, exc: AppError) -> JSONResponse:

@@ -7,6 +7,7 @@ import asyncio
 import logging
 from collections.abc import Coroutine
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any
 
 import httpx
@@ -28,6 +29,16 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
+class JobState:
+    """Last run of a scheduled job, whether started by the in-process scheduler or the jobs endpoint."""
+
+    lock: asyncio.Lock = field(default_factory=asyncio.Lock)
+    last_started: datetime | None = None
+    last_finished: datetime | None = None
+    last_error: str | None = None
+
+
+@dataclass
 class Container:
     settings: Settings
     cache: CacheBackend
@@ -43,6 +54,7 @@ class Container:
     # On-demand brief generation: users with a run in progress, and the tasks (kept so they aren't GC'd).
     briefs_in_progress: set[int] = field(default_factory=set)
     background_tasks: set[asyncio.Task[None]] = field(default_factory=set)
+    jobs: dict[str, JobState] = field(default_factory=dict)
 
     def start_streaming(self) -> None:
         self.hub.start()

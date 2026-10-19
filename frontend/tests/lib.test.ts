@@ -130,3 +130,14 @@ describe("serverApiBaseUrl", () => {
     expect(serverApiBaseUrl("http://localhost:8000", "http://backend:8000")).toBe("http://backend:8000");
   });
 });
+
+describe("same-origin API (Vercel proxy)", () => {
+  it("needs API_BASE_URL on the server and lets live prices bypass the proxy", async () => {
+    const { serverApiBaseUrl, streamUrl } = await import("@/lib/api");
+    expect(serverApiBaseUrl("", "https://marketpulse-api.onrender.com/")).toBe("https://marketpulse-api.onrender.com");
+    expect(() => serverApiBaseUrl("", undefined)).toThrow(/API_BASE_URL must be set/);
+    expect(streamUrl(["AAPL", "OANDA:XAU_USD"], "https://marketpulse-api.onrender.com")).toBe(
+      "https://marketpulse-api.onrender.com/api/v1/stream?symbols=AAPL,OANDA%3AXAU_USD",
+    );
+  });
+});
