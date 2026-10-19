@@ -1,5 +1,5 @@
 import asyncio
-import time
+from collections import deque
 from dataclasses import replace
 from typing import Any
 
@@ -78,15 +78,19 @@ async def test_daily_budget_is_enforced(clock: FakeClock) -> None:
 
 async def test_concurrent_callers_respect_the_limit_in_real_time() -> None:
     limiter = MemoryRateLimiter(LimiterConfig(name="rt", limit=5, window_s=0.3, max_wait_s=5.0))
-    stamps: list[float] = []
+    admitted: list[float] = []
 
-    async def call() -> None:
-        await limiter.acquire()
-        stamps.append(time.monotonic())
+    class RecordingDeque(deque[float]):
+        """Records the exact time the limiter admitted each call (stamps taken after acquire() returns
+        can drift under CPU load and make a correct limiter look wrong)."""
 
-    await asyncio.gather(*(call() for _ in range(15)))
-    stamps.sort()
-    assert len(stamps) == 15
-    # Allow a little scheduler jitter at the window edge.
-    assert max_in_any_window(stamps, 0.29) <= 5
-    assert stamps[-1] - stamps[0] >= 0.55
+        def append(self, value: float) -> None:
+            admitted.append(value)
+            super().append(value)
+
+    limiter._calls = RecordingDeque()
+    await asyncio.gather(*(limiter.acquire() for _ in range(15)))
+    admitted.sort()
+    assert len(admitted) == 15
+    assert max_in_any_window(admitted, 0.3) <= 5
+    assert admitted[-1] - admitted[0] >= 0.6  # 15 calls at 5 per 0.3s need at least two full windows

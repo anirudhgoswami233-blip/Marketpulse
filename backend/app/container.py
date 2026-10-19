@@ -3,8 +3,11 @@ and the live-price hub and shared Finnhub WebSocket."""
 
 from __future__ import annotations
 
+import asyncio
 import logging
+from collections.abc import Coroutine
 from dataclasses import dataclass, field
+from typing import Any
 
 import httpx
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
@@ -37,13 +40,23 @@ class Container:
     # None when FINNHUB_API_KEY is missing or streaming is disabled: pages then show REST quotes only.
     stream: FinnhubStream | None
     _clients: list[httpx.AsyncClient] = field(default_factory=list)
+    # On-demand brief generation: users with a run in progress, and the tasks (kept so they aren't GC'd).
+    briefs_in_progress: set[int] = field(default_factory=set)
+    background_tasks: set[asyncio.Task[None]] = field(default_factory=set)
 
     def start_streaming(self) -> None:
         self.hub.start()
         if self.stream is not None:
             self.stream.start()
 
+    def spawn(self, coro: Coroutine[Any, Any, None], name: str) -> None:
+        task = asyncio.create_task(coro, name=name)
+        self.background_tasks.add(task)
+        task.add_done_callback(self.background_tasks.discard)
+
     async def close(self) -> None:
+        for task in list(self.background_tasks):
+            task.cancel()
         if self.stream is not None:
             await self.stream.stop()
         await self.hub.stop()

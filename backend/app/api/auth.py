@@ -108,5 +108,9 @@ async def update_me(body: UserUpdate, user: CurrentUser, session: SessionDep) ->
     if body.timezone is not None:
         auth_service.validate_timezone(body.timezone)
         user.timezone = body.timezone
+    if body.brief_time is not None:
+        user.brief_time = body.brief_time.replace(second=0, microsecond=0, tzinfo=None)
+    if body.brief_email_enabled is not None:
+        user.brief_email_enabled = body.brief_email_enabled
     await session.commit()
     return to_user_out(user)

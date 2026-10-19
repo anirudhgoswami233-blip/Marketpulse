@@ -3,6 +3,7 @@ import json
 from collections.abc import Iterator
 from datetime import UTC, datetime
 from decimal import Decimal
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -14,7 +15,7 @@ from app.container import Container
 from app.core.errors import ProviderUnavailable
 from app.main import create_app
 from app.ws.hub import Trade
-from tests.api_helpers import make_settings, prepare
+from tests.api_helpers import file_db, make_settings, prepare
 from tests.conftest import FAKE_FINNHUB_KEY
 from tests.fakes import FakeProvider, make_quote
 
@@ -25,8 +26,8 @@ def provider() -> FakeProvider:
 
 
 @pytest.fixture
-def client(provider: FakeProvider) -> Iterator[TestClient]:
-    with TestClient(create_app(make_settings())) as test_client:
+def client(provider: FakeProvider, tmp_path: Path) -> Iterator[TestClient]:
+    with TestClient(create_app(make_settings(database_url=file_db(tmp_path)))) as test_client:
         container: Container = test_client.app.state.container  # type: ignore[attr-defined]
         assert test_client.portal is not None
         test_client.portal.call(prepare, container, provider)

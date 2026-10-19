@@ -37,7 +37,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               <Link href="/" className="text-lg font-bold tracking-tight text-primary">
                 Market<span className="text-accent">Pulse</span>
               </Link>
-              <nav aria-label="Main" className="flex gap-4 text-sm text-secondary">
+              <nav aria-label="Main" className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-secondary">
                 <Link href="/" className="hover:text-primary">
                   Markets
                 </Link>
@@ -46,6 +46,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
                 </Link>
                 <Link href="/portfolio" className="hover:text-primary">
                   Portfolio
+                </Link>
+                <Link href="/brief" className="hover:text-primary">
+                  Brief
+                </Link>
+                <Link href="/signals" className="hover:text-primary">
+                  Signals
                 </Link>
               </nav>
               <div className="order-last w-full sm:order-none sm:ml-auto sm:flex sm:w-auto sm:flex-1 sm:justify-end">

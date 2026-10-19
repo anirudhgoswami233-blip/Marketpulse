@@ -10,7 +10,7 @@ request is deferred.
 | 1 | Backend skeleton, provider layer, rate limiter, caching | Done |
 | 2 | Markets overview, search, stock pages, live prices, Next.js shell | Done |
 | 3 | Auth, watchlists, paper trading | Done |
-| 4 | Signal engine, Daily Brief, Signal History | In progress |
+| 4 | Signal engine, Daily Brief, Signal History | Done |
 | 5 | Forex & metals, macro dashboard, earnings/IPO calendar | Not started |
 | 6 | Polish, performance, README, test gaps | Not started |
 
@@ -25,6 +25,14 @@ request is deferred.
   should say that prices won't show for this symbol, rather than the controls simply missing or the
   watchlist row saying "Not on our data plan" with no further context.
 
+### Open questions
+- **LLM rewrite of the Daily Brief** (optional per the spec): which provider? A `BriefWriter` hook exists
+  (`services/brief_service.py`); the template writer is the default. Waiting on the user's choice before
+  adding a provider or dependency.
+
 ### Phase 6
+- **Brief overnight section needs the market snapshot.** A brief generated before the overview snapshot job
+  has run (e.g. right after a server start) shows "n/a" for regions and no trending symbols. Consider
+  warming the snapshot first or letting the brief job fetch the regional ETF quotes itself.
 - **Dev-mode page loads feel slow.** Investigate and improve as part of polish. Measure the production build
   (`npm run build && npm start`) separately from `next dev`, since dev mode compiles routes on demand.

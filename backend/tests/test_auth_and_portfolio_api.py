@@ -1,5 +1,6 @@
 from collections.abc import Iterator
 from decimal import Decimal
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -7,7 +8,7 @@ from fastapi.testclient import TestClient
 from app.api.auth import REFRESH_COOKIE
 from app.container import Container
 from app.main import create_app
-from tests.api_helpers import make_settings, prepare
+from tests.api_helpers import file_db, make_settings, prepare
 from tests.fakes import FakeProvider, make_quote
 
 PASSWORD = "correct-horse-1"
@@ -19,8 +20,9 @@ def provider() -> FakeProvider:
 
 
 @pytest.fixture
-def client(provider: FakeProvider) -> Iterator[TestClient]:
-    with TestClient(create_app(make_settings(login_max_failures=3, refresh_reuse_grace_s=0))) as test_client:
+def client(provider: FakeProvider, tmp_path: Path) -> Iterator[TestClient]:
+    settings = make_settings(database_url=file_db(tmp_path), login_max_failures=3, refresh_reuse_grace_s=0)
+    with TestClient(create_app(settings)) as test_client:
         container: Container = test_client.app.state.container  # type: ignore[attr-defined]
         assert test_client.portal is not None
         test_client.portal.call(prepare, container, provider)
@@ -34,6 +36,13 @@ def register(client: TestClient, email: str = "alice@example.com") -> dict[str, 
     )
     assert response.status_code == 201, response.text
     return {"Authorization": f"Bearer {response.json()['access_token']}"}
+
+
+def use_refresh_cookie(client: TestClient, value: str) -> None:
+    """Make `value` the only refresh cookie. Setting one by hand while the server-set cookie (scoped to the
+    test host) is still in the jar would send either of the two, which makes tests flaky."""
+    client.cookies.clear()
+    client.cookies.set(REFRESH_COOKIE, value, path="/api/v1/auth")
 
 
 # --- auth -----------------------------------------------------------------------------------------
@@ -122,9 +131,9 @@ def test_refresh_rotates_and_detects_reuse(client: TestClient) -> None:
     assert second_cookie and second_cookie != first_cookie
 
     # Replaying the old token (e.g. stolen) is refused and ends every session, including the new one.
-    client.cookies.set(REFRESH_COOKIE, first_cookie, path="/api/v1/auth")
+    use_refresh_cookie(client, first_cookie)
     assert client.post("/api/v1/auth/refresh").status_code == 401
-    client.cookies.set(REFRESH_COOKIE, second_cookie, path="/api/v1/auth")
+    use_refresh_cookie(client, second_cookie)
     assert client.post("/api/v1/auth/refresh").status_code == 401
 
 
@@ -133,7 +142,7 @@ def test_logout_revokes_the_refresh_token(client: TestClient) -> None:
     cookie = client.cookies.get(REFRESH_COOKIE)
     assert client.post("/api/v1/auth/logout").status_code == 204
     assert client.cookies.get(REFRESH_COOKIE) is None
-    client.cookies.set(REFRESH_COOKIE, cookie or "", path="/api/v1/auth")
+    use_refresh_cookie(client, cookie or "")
     assert client.post("/api/v1/auth/refresh").status_code == 401
 
 

@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Suspense } from "react";
 
+import { Disclaimer, SignalCard } from "@/components/signals/SignalCard";
 import { PriceChart } from "@/components/stock/PriceChart";
 import { CompanyProfileCard, KeyStats, NewsList } from "@/components/stock/StockDetails";
 import { StockActions } from "@/components/stock/StockActions";
@@ -81,6 +83,18 @@ async function StockContent({ params }: { params: PageProps<"/stock/[symbol]">["
         </Card>
       </div>
 
+      <Card title="Technical signals">
+        {stock.price_available ? (
+          <Suspense fallback={<SkeletonBlock lines={5} label="Computing signals" />}>
+            <SignalSection symbol={stock.symbol} />
+          </Suspense>
+        ) : (
+          <EmptyState title="Signals aren't available for this exchange">
+            Signals are computed from daily price history, which our data plan covers for US-listed securities only.
+          </EmptyState>
+        )}
+      </Card>
+
       <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
         <Card title="Key statistics">
           <Suspense fallback={<SkeletonBlock lines={6} label="Loading statistics" />}>
@@ -144,6 +158,26 @@ async function StatsSection({ stock }: { stock: SymbolInfo }) {
       <KeyStats quote={quoteData} metrics={metricsData} currency={stock.currency} />
       {metrics.data && <Freshness envelope={metrics.data} />}
     </>
+  );
+}
+
+async function SignalSection({ symbol }: { symbol: string }) {
+  const signal = await settle(api.signal(symbol));
+  if (signal.error) {
+    return (
+      <div className="space-y-2">
+        <ErrorState message={signal.error.message} retryable={signal.error.retryable} />
+        <Disclaimer />
+      </div>
+    );
+  }
+  return (
+    <div className="space-y-3">
+      <SignalCard signal={signal.data} />
+      <Link href="/signals" className="text-xs text-accent hover:underline">
+        How have past signals performed?
+      </Link>
+    </div>
   );
 }
 

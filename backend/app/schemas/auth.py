@@ -29,6 +29,8 @@ class UserOut(BaseModel):
 class UserUpdate(BaseModel):
     display_name: str | None = Field(default=None, min_length=1, max_length=80)
     timezone: str | None = Field(default=None, max_length=64)
+    brief_time: time | None = None
+    brief_email_enabled: bool | None = None
 
 
 class TokenOut(BaseModel):

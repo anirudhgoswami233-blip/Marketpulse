@@ -28,6 +28,8 @@ interface AuthContextValue {
   logout: () => Promise<void>;
   /** An API request with the access token attached, refreshing it once if it has expired. */
   authRequest: <T>(path: string, options?: RequestOptions) => Promise<T>;
+  /** Replace the cached profile after the user edits it (e.g. brief settings). */
+  updateUser: (user: User) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -142,9 +144,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [applySession],
   );
 
+  const updateUser = useCallback((next: User) => setUser(next), []);
+
   const value = useMemo(
-    () => ({ status, user, login, register, logout, authRequest }),
-    [status, user, login, register, logout, authRequest],
+    () => ({ status, user, login, register, logout, authRequest, updateUser }),
+    [status, user, login, register, logout, authRequest, updateUser],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

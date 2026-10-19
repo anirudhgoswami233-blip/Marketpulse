@@ -86,6 +86,8 @@ Update this section if commands change.
 - Every brief and signal view shows: *"Educational information based on technical indicators, not financial advice."*
 - Brief jobs spread API calls over time to stay under the rate limit. Never fire a burst for all users at once.
 - Store each generated signal so the Signal History page can measure past performance.
+- Engine lives in `signals/` (pure, float math; RSI is Wilder-smoothed and matches exact arithmetic). Signals are stored once per (symbol, last completed session, `ENGINE_VERSION`); bump `ENGINE_VERSION` when rules change so history isn't mixed.
+- Jobs: `daily_brief` (every 5 min, weekdays at each user's local `brief_time`; one DB session per symbol so a failure can't expire shared ORM objects), `signal_outcomes` (hourly; 1/5/20-session returns from `price_bars`).
 
 ## Workflow
 1. For any non-trivial task: read relevant files first, propose a short plan, then implement.
@@ -94,6 +96,19 @@ Update this section if commands change.
 4. Ask before: adding a new dependency, adding a new data provider, changing the DB schema in a breaking way, or deleting files.
 5. Keep changes focused. Don't refactor unrelated code in the same change.
 6. If something is ambiguous, ask one specific question instead of guessing.
+
+## Testing against real services (end-to-end)
+- The user often has their own dev servers running on :3000/:8000 against `marketpulse.db`. Never stop
+  processes you didn't start; check the owning process's command line first.
+- Run E2E stacks on other ports **and on 127.0.0.1** (not `localhost`): cookies are shared across ports per
+  host, so a test backend on localhost would receive and rotate the user's real refresh cookie.
+- Use a scratchpad copy of the DB, a throwaway `JWT_SECRET`, and `ENABLE_BACKGROUND_JOBS=false
+  ENABLE_STREAMING=false` (the API keys and Finnhub's per-key limits are shared with the user's server).
+- `NEXT_PUBLIC_*` is baked in at build time: build an isolated copy of the frontend (its own `npm ci`;
+  Turbopack won't follow a junctioned `node_modules`) rather than rebuilding `frontend/.next` under a
+  running server.
+- HTTP-level pytest fixtures use `file_db(tmp_path)`, never `:memory:` (one shared connection would merge
+  concurrent sessions' transactions).
 
 ## Don'ts
 - Don't hardcode symbols, keys, or prices (except in tests/fixtures).

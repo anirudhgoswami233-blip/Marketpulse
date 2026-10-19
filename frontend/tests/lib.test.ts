@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { rangeChange, toChartPoints, tzOffsetSeconds } from "@/lib/chart";
 import { direction, formatChange, formatCompact, formatCountdown, formatMoney, formatPct, formatPrice } from "@/lib/format";
@@ -105,5 +105,17 @@ describe("formatMoney", () => {
     expect(formatMoney("0", "USD")).toMatch(/0\.00$/);
     expect(formatMoney("0.5", "USD")).toMatch(/0\.50$/);
     expect(formatMoney("100000", "USD")).toContain("100,000.00");
+  });
+});
+
+describe("apiRequest", () => {
+  it("accepts empty success bodies (202/204) and rejects malformed JSON clearly", async () => {
+    const { apiRequest, ApiError } = await import("@/lib/api");
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("", { status: 202 })));
+    await expect(apiRequest("/api/v1/brief/generate", { method: "POST" })).resolves.toBeUndefined();
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(null, { status: 204 })));
+    await expect(apiRequest("/x", { method: "DELETE" })).resolves.toBeUndefined();
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("<html>", { status: 200 })));
+    await expect(apiRequest("/x")).rejects.toBeInstanceOf(ApiError);
   });
 });

@@ -5,6 +5,7 @@ import { LiveQuotesProvider } from "@/components/markets/LiveQuotesProvider";
 import { MarketStatusList } from "@/components/markets/MarketStatusList";
 import { MoversTable } from "@/components/markets/MoversTable";
 import { SectorHeatmap } from "@/components/markets/SectorHeatmap";
+import { BriefTeaser } from "@/components/signals/BriefTeaser";
 import { AutoRefresh } from "@/components/ui/AutoRefresh";
 import { Card, Skeleton, SkeletonBlock } from "@/components/ui/primitives";
 import { ErrorState, LocalTime, StaleBadge } from "@/components/ui/status";
@@ -20,6 +21,7 @@ export default function MarketsPage() {
           Regional indices are shown through US-listed ETFs that track them, so they move during US trading hours.
         </p>
       </div>
+      <BriefTeaser />
       <Suspense fallback={<OverviewSkeleton />}>
         <Overview />
       </Suspense>

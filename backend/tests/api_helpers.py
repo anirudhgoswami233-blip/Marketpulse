@@ -1,8 +1,9 @@
-"""Shared setup for HTTP-level tests: an app on an in-memory DB, seeded symbols, and fake providers."""
+"""Shared setup for HTTP-level tests: an app with seeded symbols and fake providers."""
 
 from __future__ import annotations
 
 import dataclasses
+from pathlib import Path
 from typing import Any
 
 import app.models  # noqa: F401 - registers models on Base.metadata
@@ -14,6 +15,16 @@ from app.services import symbol_directory
 from tests.fakes import FakeProvider
 
 TEST_JWT_SECRET = "test-jwt-secret-that-is-long-enough-123456"
+
+
+def file_db(directory: Path) -> str:
+    """A SQLite file URL for HTTP-level tests (pass pytest's `tmp_path`).
+
+    Not ":memory:": an in-memory DB is served over one shared connection, so concurrent sessions (e.g. a
+    background brief task and the requests polling it) would share one transaction, which never happens
+    in a real deployment.
+    """
+    return f"sqlite+aiosqlite:///{(directory / 'test.db').as_posix()}"
 
 
 def make_settings(**overrides: Any) -> Settings:

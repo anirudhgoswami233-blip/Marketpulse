@@ -261,3 +261,85 @@ export interface Portfolio {
   incomplete: boolean;
   as_of: IsoDateTime;
 }
+
+// --- signals & daily brief ---------------------------------------------------------------------------
+
+export type SignalLabel = "Bullish signals" | "Neutral" | "Bearish signals";
+
+export interface SignalReason {
+  rule: string;
+  direction: -1 | 0 | 1;
+  weight: number;
+  reason: string;
+}
+
+export interface SignalOutcome {
+  horizon_days: number;
+  outcome_date: string;
+  return_pct: DecimalString;
+}
+
+export interface Signal {
+  id: number;
+  symbol: string;
+  display_symbol: string;
+  description: string;
+  signal_date: string;
+  engine_version: string;
+  score: number;
+  label: SignalLabel;
+  reasons: SignalReason[];
+  skipped: { rule: string; reason: string }[];
+  indicators: Record<string, number | null>;
+  price_at_signal: DecimalString | null;
+  currency: string | null;
+  outcomes: SignalOutcome[];
+  disclaimer: string;
+}
+
+export interface LabelStats {
+  label: SignalLabel;
+  horizon_days: number;
+  count: number;
+  avg_return_pct: DecimalString | null;
+  hit_rate_pct: DecimalString | null;
+  enough_data: boolean;
+}
+
+export interface SignalPerformance {
+  stats: LabelStats[];
+  total_signals: number;
+  min_sample: number;
+  disclaimer: string;
+}
+
+export interface BriefRegion {
+  region: string;
+  avg_change_pct: number | null;
+  detail: string[];
+}
+
+export interface Brief {
+  id: number;
+  brief_date: string;
+  generated_at: IsoDateTime;
+  generator: string;
+  summary_md: string;
+  overnight: { regions: BriefRegion[]; as_of: IsoDateTime | null; unavailable?: string[] };
+  items: { source: "watchlist" | "trending"; signal: Signal }[];
+  emailed_at: IsoDateTime | null;
+  disclaimer: string;
+}
+
+export interface BriefStatus {
+  brief: Brief | null;
+  generating: boolean;
+  next_scheduled_at: IsoDateTime | null;
+  email_available: boolean;
+}
+
+export interface BriefSummary {
+  brief_date: string;
+  generated_at: IsoDateTime;
+  signal_count: number;
+}

@@ -66,6 +66,8 @@ class FakeProvider(MarketDataProvider):
         self.bars: Callable[[str, Interval, int], list[Bar]] | Exception | None = None
         self.bars_calls: list[tuple[str, Interval, int]] = []
         self.news: list[NewsItem] = []
+        self.news_error: Exception | None = None
+        self.news_calls = 0
         self.as_of = NOW
 
     def _wrap[T](self, data: T) -> Fetched[T]:
@@ -100,6 +102,9 @@ class FakeProvider(MarketDataProvider):
         )
 
     async def get_company_news(self, symbol: str, start: date, end: date) -> Fetched[list[NewsItem]]:
+        self.news_calls += 1
+        if self.news_error is not None:
+            raise self.news_error
         return self._wrap(self.news)
 
     async def get_company_profile(self, symbol: str) -> Fetched[CompanyProfile]:
@@ -115,3 +120,29 @@ def open_us_status() -> MarketStatus:
         timezone="America/New_York",
         timestamp=NOW,
     )
+
+
+def news_item(headline: str, i: int = 0) -> NewsItem:
+    return NewsItem(
+        id=str(i),
+        headline=headline,
+        summary="",
+        source="test",
+        url=f"https://example.test/{i}",
+        image_url=None,
+        published_at=NOW,
+        category=None,
+        related_symbols=[],
+    )
+
+
+def trending_daily_bars(end: date, sessions: int, start: float = 100.0, step: float = 0.5) -> list[Bar]:
+    """`sessions` weekday bars ending on `end`, rising by `step` per day."""
+    days: list[date] = []
+    day = end
+    while len(days) < sessions:
+        if day.weekday() < 5:
+            days.append(day)
+        day = date.fromordinal(day.toordinal() - 1)
+    days.reverse()
+    return [daily_bar(d, f"{start + i * step:.2f}") for i, d in enumerate(days)]

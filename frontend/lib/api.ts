@@ -10,6 +10,9 @@ import type {
   NewsItem,
   Quote,
   SearchResults,
+  Signal,
+  SignalLabel,
+  SignalPerformance,
   SymbolInfo,
 } from "@/types/api";
 
@@ -83,8 +86,14 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     }
     throw new ApiError(message, response.status, code);
   }
-  if (response.status === 204) return undefined as T;
-  return (await response.json()) as T;
+  // 202/204 responses (e.g. "generation started", "deleted") may have no body at all.
+  const text = await response.text();
+  if (!text) return undefined as T;
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new ApiError("The server sent an unexpected response.", response.status, "malformed_response");
+  }
 }
 
 export function apiGet<T>(path: string, init?: RequestInit): Promise<T> {
@@ -104,6 +113,15 @@ export const api = {
   news: (symbol: string) => apiGet<Envelope<NewsItem[]>>(`/api/v1/stocks/${enc(symbol)}/news`),
   quotes: (symbols: string[], init?: RequestInit) =>
     apiGet<BulkQuotes>(`/api/v1/quotes?symbols=${symbols.map(enc).join(",")}`, init),
+  signal: (symbol: string) => apiGet<Signal>(`/api/v1/stocks/${enc(symbol)}/signal`),
+  signalHistory: (params: { symbol?: string; label?: SignalLabel; limit?: number } = {}) => {
+    const query = new URLSearchParams();
+    if (params.symbol) query.set("symbol", params.symbol);
+    if (params.label) query.set("label", params.label);
+    query.set("limit", String(params.limit ?? 50));
+    return apiGet<Signal[]>(`/api/v1/signals/history?${query}`);
+  },
+  signalPerformance: () => apiGet<SignalPerformance>("/api/v1/signals/performance"),
   chart: (symbol: string, range: ChartRange, init?: RequestInit) =>
     apiGet<Envelope<Chart>>(`/api/v1/stocks/${enc(symbol)}/chart?range=${range}`, init),
 };
