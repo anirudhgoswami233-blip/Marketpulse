@@ -1,5 +1,10 @@
 # MarketPulse
 
+**[Live demo →](https://marketpulse-rose-seven.vercel.app)**
+
+> The backend runs on Render's free tier and sleeps after ~15 idle minutes. If nobody has used the demo for a
+> while, the first load can take ~50 s while it wakes up; after that pages load normally.
+
 A global stock market web app: live quotes, a markets overview, forex and metals, a macro dashboard, earnings
 and IPO calendars, watchlists, paper trading, and a personalised **Daily Market Brief** built from technical
 signals.
