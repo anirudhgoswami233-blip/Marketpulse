@@ -84,7 +84,7 @@ Update this section if commands change.
 - Money and prices: use `Decimal` in Python for portfolio math; format with locale-aware formatters in the UI. Always store currency alongside price.
 - Times: store UTC, convert to user/exchange timezone only for display. Market hours use the exchange's own timezone.
 - Every data-driven UI shows: loading skeleton, empty state, error state, and "data as of HH:MM" when cached.
-- Next.js 16 with Cache Components: read `frontend/node_modules/next/dist/docs/` before using an unfamiliar API (see `frontend/AGENTS.md`). Server components fetch inside `<Suspense>`; live prices come from one shared SSE stream per page (`LiveQuotesProvider`), never one per widget.
+- Next.js 16 with Cache Components: read `frontend/node_modules/next/dist/docs/` before using an unfamiliar API (see `frontend/AGENTS.md`). Server components fetch inside `<Suspense>`; live prices come from one shared SSE stream per page (`LiveQuotesProvider`), never one per widget. Never read the clock (`new Date()`, `Date.now()`) or randomness in a server component before `await connection()`; ESLint enforces this for `app/**`. Client components may read it only in effects or event handlers.
 
 ## Daily Market Brief — non-negotiables
 - Signals are **labels with reasons** ("Bullish signals: RSI 28 oversold, price above 200-DMA"), never bare "BUY/SELL" commands.
