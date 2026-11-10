@@ -52,79 +52,83 @@ async function StockContent({ params }: { params: PageProps<"/stock/[symbol]">["
   const isCompany = stock.type !== "Forex";
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div>
-        <p className="text-xs text-muted">
+        <p className="section-label">
           {stock.exchange} · {stock.type || "Security"}
           {stock.currency && ` · ${stock.currency}`}
         </p>
-        <h1 className="text-2xl font-semibold text-primary">
-          {stock.display_symbol} <span className="text-base font-normal text-secondary">{stock.description}</span>
+        <h1 className="text-lg font-semibold text-primary">
+          {stock.display_symbol} <span className="text-sm font-normal text-secondary">{stock.description}</span>
         </h1>
-        <div className="mt-3">
-          <Suspense fallback={<Skeleton className="h-12 w-64" />}>
+        <div className="mt-2">
+          <Suspense fallback={<Skeleton className="h-20 w-64" />}>
             <QuoteSection stock={stock} />
           </Suspense>
         </div>
       </div>
 
-      <div className={`grid gap-4 ${isCompany ? "lg:grid-cols-[2fr_1fr]" : ""}`}>
-        <Card title="Price chart">
-          {stock.price_available ? (
-            <PriceChart symbol={stock.symbol} currency={stock.currency} />
-          ) : (
-            <EmptyState title="No chart for this symbol">{stock.price_note}</EmptyState>
-          )}
-        </Card>
-        {isCompany && (
-          <Card title="Company profile">
-            <Suspense fallback={<SkeletonBlock lines={6} label="Loading profile" />}>
-              <ProfileSection symbol={stock.symbol} />
-            </Suspense>
+      {/* Main column: chart, signals, statistics. Side column (companies only): profile and news. */}
+      <div className={`grid items-start gap-3 ${isCompany ? "lg:grid-cols-[2fr_1fr]" : ""}`}>
+        <div className="min-w-0 space-y-3">
+          <Card title="Price chart">
+            {stock.price_available ? (
+              <PriceChart symbol={stock.symbol} currency={stock.currency} />
+            ) : (
+              <EmptyState title="No chart for this symbol">{stock.price_note}</EmptyState>
+            )}
           </Card>
+
+          <Card title="Technical signals">
+            {stock.price_available ? (
+              <Suspense fallback={<SkeletonBlock lines={5} label="Computing signals" />}>
+                <SignalSection symbol={stock.symbol} />
+              </Suspense>
+            ) : (
+              <EmptyState title="No signals for this symbol">
+                Signals are computed from daily price history. {stock.price_note}
+              </EmptyState>
+            )}
+          </Card>
+
+          {isCompany ? (
+            <Card title="Key statistics">
+              <Suspense fallback={<SkeletonBlock lines={6} label="Loading statistics" />}>
+                <StatsSection stock={stock} />
+              </Suspense>
+            </Card>
+          ) : (
+            <Card title="About this rate">
+              <p className="max-w-2xl text-[13px] text-secondary">
+                {stock.description}.{" "}
+                {stock.price_available
+                  ? `Quotes come from Twelve Data and are delayed up to ${stock.quote_delay_min ?? 5} minutes; there's no live stream for forex or metals on our data plan.`
+                  : stock.price_note}{" "}
+                Compare currencies on the{" "}
+                <Link href="/forex" className="text-accent hover:underline">
+                  Forex page
+                </Link>
+                .
+              </p>
+            </Card>
+          )}
+        </div>
+
+        {isCompany && (
+          <div className="min-w-0 space-y-3">
+            <Card title="Company profile">
+              <Suspense fallback={<SkeletonBlock lines={6} label="Loading profile" />}>
+                <ProfileSection symbol={stock.symbol} />
+              </Suspense>
+            </Card>
+            <Card title="Latest news">
+              <Suspense fallback={<SkeletonBlock lines={8} label="Loading news" />}>
+                <NewsSection symbol={stock.symbol} />
+              </Suspense>
+            </Card>
+          </div>
         )}
       </div>
-
-      <Card title="Technical signals">
-        {stock.price_available ? (
-          <Suspense fallback={<SkeletonBlock lines={5} label="Computing signals" />}>
-            <SignalSection symbol={stock.symbol} />
-          </Suspense>
-        ) : (
-          <EmptyState title="No signals for this symbol">
-            Signals are computed from daily price history. {stock.price_note}
-          </EmptyState>
-        )}
-      </Card>
-
-      {isCompany ? (
-        <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
-          <Card title="Key statistics">
-            <Suspense fallback={<SkeletonBlock lines={6} label="Loading statistics" />}>
-              <StatsSection stock={stock} />
-            </Suspense>
-          </Card>
-          <Card title="Latest news">
-            <Suspense fallback={<SkeletonBlock lines={8} label="Loading news" />}>
-              <NewsSection symbol={stock.symbol} />
-            </Suspense>
-          </Card>
-        </div>
-      ) : (
-        <Card title="About this rate">
-          <p className="max-w-2xl text-sm text-secondary">
-            {stock.description}.{" "}
-            {stock.price_available
-              ? `Quotes come from Twelve Data and are delayed up to ${stock.quote_delay_min ?? 5} minutes; there's no live stream for forex or metals on our data plan.`
-              : stock.price_note}{" "}
-            Compare currencies on the{" "}
-            <Link href="/forex" className="text-accent hover:underline">
-              Forex page
-            </Link>
-            .
-          </p>
-        </Card>
-      )}
     </div>
   );
 }
@@ -215,16 +219,21 @@ function Freshness<T>({ envelope }: { envelope: Envelope<T> }) {
 
 function StockSkeleton() {
   return (
-    <div className="space-y-6" role="status" aria-label="Loading stock">
+    <div className="space-y-4" role="status" aria-label="Loading stock">
       <div className="space-y-2">
         <Skeleton className="h-3 w-32" />
-        <Skeleton className="h-7 w-72" />
-        <Skeleton className="h-10 w-56" />
+        <Skeleton className="h-6 w-72" />
+        <Skeleton className="h-20 w-64" />
       </div>
-      <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
-        <Card>
-          <Skeleton className="h-80 w-full" />
-        </Card>
+      <div className="grid items-start gap-3 lg:grid-cols-[2fr_1fr]">
+        <div className="space-y-3">
+          <Card>
+            <Skeleton className="h-96 w-full" />
+          </Card>
+          <Card>
+            <SkeletonBlock lines={8} />
+          </Card>
+        </div>
         <Card>
           <SkeletonBlock lines={6} />
         </Card>

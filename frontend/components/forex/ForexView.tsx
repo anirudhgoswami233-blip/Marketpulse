@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import { Card, ChangeText, EmptyState, SkeletonBlock } from "@/components/ui/primitives";
+import { Card, ChangeText, EmptyState, Skeleton, SkeletonBlock } from "@/components/ui/primitives";
 import { ErrorState, LocalTime, StaleBadge } from "@/components/ui/status";
 import { useAuthedQuery } from "@/lib/useAuthedQuery";
 import type { ForexBoard, ForexRow } from "@/types/api";
@@ -39,7 +39,7 @@ export function ForexView() {
     return () => window.clearInterval(id);
   }, [warming, reload]);
 
-  if (state.kind === "loading") return <SkeletonBlock lines={10} label="Loading forex rates" />;
+  if (state.kind === "loading") return <ForexSkeleton />;
   if (state.kind === "error") {
     return <ErrorState message={state.error.message} retryable={state.error.retryable} onRetry={reload} />;
   }
@@ -48,7 +48,7 @@ export function ForexView() {
   const priced = board.rows.some((r) => r.rate !== null);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
         {board.as_of ? (
           <span>
@@ -65,13 +65,15 @@ export function ForexView() {
           Our forex data provider didn&apos;t return any rates. Try again later.
         </EmptyState>
       ) : (
-        <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
-          <div className="space-y-4">
-            {groups.map((group) => (
-              <Card key={group} title={group}>
-                <RateTable rows={board.rows.filter((r) => r.group === group)} loading={!priced} />
-              </Card>
-            ))}
+        <div className="grid items-start gap-3 lg:grid-cols-[2fr_1fr]">
+          <div className="space-y-3">
+            <div className="grid items-start gap-3 sm:grid-cols-2">
+              {groups.map((group) => (
+                <Card key={group} title={group} flush>
+                  <RateTable rows={board.rows.filter((r) => r.group === group)} loading={!priced} group={group} />
+                </Card>
+              ))}
+            </div>
             <p className="text-xs text-muted">
               <span className="font-medium">≈</span> marks cross rates derived from two USD pairs (e.g. EUR/INR from
               EUR/USD and USD/INR). Quotes come from Twelve Data and are indicative, not dealable prices.
@@ -86,20 +88,42 @@ export function ForexView() {
   );
 }
 
-function RateTable({ rows, loading }: { rows: ForexRow[]; loading: boolean }) {
+/** Mirrors the loaded layout (status line, rate tables, converter) so content doesn't jump when rates arrive. */
+function ForexSkeleton() {
   return (
-    <table className="w-full text-sm">
+    <div className="space-y-3" role="status" aria-label="Loading forex rates">
+      <Skeleton className="h-4 w-64 max-w-full" />
+      <div className="grid items-start gap-3 lg:grid-cols-[2fr_1fr]">
+        <div className="grid items-start gap-3 sm:grid-cols-2">
+          {Array.from({ length: 4 }, (_, i) => (
+            <Card key={i}>
+              <SkeletonBlock lines={7} label="Loading rates" />
+            </Card>
+          ))}
+        </div>
+        <Card>
+          <SkeletonBlock lines={9} label="Loading converter" />
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+function RateTable({ rows, loading, group }: { rows: ForexRow[]; loading: boolean; group: string }) {
+  return (
+    <table className="data-table">
+      <caption className="sr-only">{group} rates</caption>
       <thead>
-        <tr className="text-left text-xs text-muted">
-          <th scope="col" className="pb-2 font-normal">Pair</th>
-          <th scope="col" className="pb-2 text-right font-normal">Rate</th>
-          <th scope="col" className="pb-2 text-right font-normal">Change</th>
+        <tr>
+          <th scope="col">Pair</th>
+          <th scope="col" className="num">Rate</th>
+          <th scope="col" className="num">Change</th>
         </tr>
       </thead>
-      <tbody className="divide-y divide-border">
+      <tbody>
         {rows.map((row) => (
           <tr key={row.pair}>
-            <td className="py-2">
+            <td>
               {row.symbol ? (
                 <Link href={`/stock/${encodeURIComponent(row.symbol)}`} className="font-medium text-primary hover:text-accent">
                   {row.pair}
@@ -113,10 +137,10 @@ function RateTable({ rows, loading }: { rows: ForexRow[]; loading: boolean }) {
                 </span>
               )}
             </td>
-            <td className="tabular py-2 text-right text-primary">
+            <td className="num text-primary">
               {loading ? <span className="text-muted">…</span> : formatRate(row.rate)}
             </td>
-            <td className="py-2 text-right">
+            <td className="num">
               {row.change_pct === null ? <span className="text-muted">—</span> : <ChangeText changePct={row.change_pct} />}
             </td>
           </tr>
@@ -136,17 +160,17 @@ function Converter({ board }: { board: ForexBoard }) {
   const value = Number(amount);
   const result = amount.trim() === "" ? null : convertAmount(value, from, to, board.usd_per_unit);
   const unit = convertAmount(1, from, to, board.usd_per_unit);
-  const selectClass = "w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-primary";
+  const selectClass = "input";
 
   return (
-    <form className="space-y-3 text-sm" onSubmit={(e) => e.preventDefault()}>
+    <form className="space-y-2 text-[13px]" onSubmit={(e) => e.preventDefault()}>
       <label className="block space-y-1">
         <span className="text-secondary">Amount</span>
         <input
           inputMode="decimal"
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
-          className="tabular w-full rounded-md border border-border bg-surface px-2 py-1.5 text-primary"
+          className="input"
         />
       </label>
       {/* Stacked: the converter sits in a narrow column, and side-by-side selects truncate currency names. */}
@@ -168,9 +192,9 @@ function Converter({ board }: { board: ForexBoard }) {
             setTo(from);
           }}
           aria-label="Swap currencies"
-          className="justify-self-center rounded-md border border-border px-2 py-1 text-secondary hover:text-primary"
+          className="btn justify-self-start"
         >
-          ⇅
+          ⇅ Swap
         </button>
         <label className="block space-y-1">
           <span className="text-secondary">To</span>
@@ -183,15 +207,15 @@ function Converter({ board }: { board: ForexBoard }) {
           </select>
         </label>
       </div>
-      <output className="block rounded-lg bg-surface-2 px-3 py-3" aria-live="polite">
+      <output className="block rounded-sm border border-border bg-surface-2 px-3 py-2" aria-live="polite">
         {result === null || !Number.isFinite(value) ? (
           <span className="text-muted">Enter an amount</span>
         ) : (
           <>
-            <span className="tabular text-lg font-semibold text-primary">
+            <span className="tabular text-base font-semibold text-primary">
               {formatRate(result)} {to}
             </span>
-            <span className="mt-1 block text-xs text-muted">
+            <span className="mt-0.5 block text-xs text-muted">
               1 {from} = {formatRate(unit)} {to}
             </span>
           </>

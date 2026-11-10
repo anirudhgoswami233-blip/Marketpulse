@@ -38,33 +38,23 @@ export function ConfirmDialog({
 
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4" onClick={onCancel}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-scrim px-4" onClick={onCancel}>
       <div
         role="alertdialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="w-full max-w-sm rounded-xl border border-border bg-surface p-5 shadow-xl"
+        className="w-full max-w-sm rounded-md border border-border-strong bg-surface p-4"
         onClick={(event) => event.stopPropagation()}
       >
-        <h2 id={titleId} className="text-base font-semibold text-primary">
+        <h2 id={titleId} className="text-sm font-semibold text-primary">
           {title}
         </h2>
-        <p className="mt-2 text-sm text-secondary">{body}</p>
-        <div className="mt-5 flex justify-end gap-2">
-          <button
-            ref={cancelRef}
-            type="button"
-            onClick={onCancel}
-            className="rounded-md border border-border px-3 py-1.5 text-sm text-primary hover:bg-surface-2"
-          >
+        <p className="mt-1.5 text-[13px] text-secondary">{body}</p>
+        <div className="mt-4 flex justify-end gap-2">
+          <button ref={cancelRef} type="button" onClick={onCancel} className="btn btn-md">
             Cancel
           </button>
-          <button
-            type="button"
-            onClick={onConfirm}
-            disabled={busy}
-            className="rounded-md bg-down px-3 py-1.5 text-sm font-medium text-surface hover:opacity-90 disabled:opacity-60"
-          >
+          <button type="button" onClick={onConfirm} disabled={busy} className="btn btn-md btn-danger-solid">
             {busy ? "Working…" : confirmLabel}
           </button>
         </div>

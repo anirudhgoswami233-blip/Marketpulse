@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 import { SearchBox } from "@/components/search/SearchBox";
-import { Card, EmptyState, SkeletonBlock } from "@/components/ui/primitives";
+import { Card, EmptyState, PageHeader, SkeletonBlock } from "@/components/ui/primitives";
 import { ErrorState } from "@/components/ui/status";
 import { api, toApiError } from "@/lib/api";
 import type { SearchResults } from "@/types/api";
@@ -11,8 +11,8 @@ export const metadata = { title: "Search" };
 
 export default function SearchPage({ searchParams }: PageProps<"/search">) {
   return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-semibold text-primary">Search</h1>
+    <div className="space-y-3">
+      <PageHeader title="Search" />
       <SearchBox autoFocus />
       <Suspense fallback={<SkeletonBlock lines={8} label="Searching" />}>
         <Results searchParams={searchParams} />
@@ -39,13 +39,13 @@ async function Results({ searchParams }: { searchParams: PageProps<"/search">["s
     return <EmptyState title={`No matches for “${q}”`}>Check the spelling or search by ticker.</EmptyState>;
   }
   return (
-    <Card title={`${data.results.length} results for “${q}”`}>
+    <Card title={`${data.results.length} results for “${q}”`} flush>
       <ul className="divide-y divide-border">
         {data.results.map((r) => (
           <li key={`${r.symbol}-${r.exchange}`}>
             <Link
               href={`/stock/${encodeURIComponent(r.symbol)}`}
-              className="flex items-center justify-between gap-3 py-2 text-sm hover:text-accent"
+              className="flex items-center justify-between gap-3 px-3 py-1.5 text-[13px] hover:bg-surface-2"
             >
               <span className="min-w-0">
                 <span className="font-semibold text-primary">{r.display_symbol}</span>{" "}

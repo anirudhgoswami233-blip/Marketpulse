@@ -36,7 +36,7 @@ export function StockActions({ info, price, currency }: { info: SymbolInfo; pric
         ) : (
           info.trade_note &&
           info.trade_note !== info.price_note && (
-            <p className="max-w-sm rounded-md bg-surface-2 px-3 py-1.5 text-xs text-secondary">
+            <p className="notice max-w-sm text-xs">
               <span className="font-medium text-primary">No paper trading: </span>
               {info.trade_note}
             </p>
@@ -51,12 +51,8 @@ export function StockActions({ info, price, currency }: { info: SymbolInfo; pric
 /** Shown wherever actions are offered for a symbol we can't price, so the empty price isn't a surprise. */
 export function NoPriceNote({ note }: { note: string }) {
   return (
-    <p className="flex max-w-xl gap-2 rounded-md bg-surface-2 px-3 py-2 text-xs text-secondary" role="note">
-      <span aria-hidden>ⓘ</span>
-      <span>
-        {note} You can still add it to a watchlist to keep it in view; its row will say the price isn&apos;t
-        available.
-      </span>
+    <p className="notice max-w-xl text-xs" role="note">
+      {note} You can still add it to a watchlist to keep it in view; its row will say the price isn&apos;t available.
     </p>
   );
 }
@@ -70,7 +66,7 @@ function AddToWatchlist({ info }: { info: SymbolInfo }) {
   const lists = state.data;
   if (lists.length === 0) {
     return (
-      <Link href="/watchlists" className="rounded-md border border-border px-3 py-1.5 text-xs text-secondary hover:text-primary">
+      <Link href="/watchlists" className="btn">
         Create a watchlist
       </Link>
     );
@@ -101,7 +97,7 @@ function AddToWatchlist({ info }: { info: SymbolInfo }) {
             const target = lists.find((w) => String(w.id) === event.target.value);
             if (target) void add(target);
           }}
-          className="rounded-md border border-border bg-surface px-2 py-1 text-xs text-primary"
+          className="input w-auto py-0.5 text-xs"
         >
           <option value="" disabled>
             Choose a watchlist…
@@ -141,7 +137,7 @@ export function TradePanel({ info, price, currency }: { info: SymbolInfo; price:
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-surface hover:opacity-90"
+        className="btn btn-primary"
       >
         Trade (paper)
       </button>
@@ -177,10 +173,10 @@ export function TradePanel({ info, price, currency }: { info: SymbolInfo; price:
   };
 
   return (
-    <section aria-label={`Paper trade ${info.display_symbol}`} className="w-full max-w-sm rounded-xl border border-border bg-surface p-4">
-      <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-primary">Paper trade {info.display_symbol}</h2>
-        <button type="button" onClick={() => setOpen(false)} className="text-xs text-muted hover:text-primary">
+    <section aria-label={`Paper trade ${info.display_symbol}`} className="w-full max-w-sm rounded-md border border-border bg-surface p-3">
+      <div className="mb-2 flex items-center justify-between">
+        <h2 className="section-label">Paper trade {info.display_symbol}</h2>
+        <button type="button" onClick={() => setOpen(false)} className="text-xs text-secondary hover:text-primary">
           Close
         </button>
       </div>
@@ -202,7 +198,7 @@ export function TradePanel({ info, price, currency }: { info: SymbolInfo; price:
         </div>
       ) : step.kind === "edit" ? (
         <form onSubmit={review} className="space-y-3" noValidate>
-          <div role="radiogroup" aria-label="Order side" className="grid grid-cols-2 gap-1 rounded-lg bg-surface-2 p-1">
+          <div role="radiogroup" aria-label="Order side" className="grid grid-cols-2 gap-1">
             {(["buy", "sell"] as const).map((s) => (
               <button
                 key={s}
@@ -210,7 +206,7 @@ export function TradePanel({ info, price, currency }: { info: SymbolInfo; price:
                 role="radio"
                 aria-checked={side === s}
                 onClick={() => setSide(s)}
-                className={`rounded-md py-1 text-xs font-medium capitalize ${side === s ? "bg-surface text-primary shadow" : "text-secondary"}`}
+                className={`tab capitalize ${side === s ? "" : "border-border"}`}
               >
                 {s}
               </button>
@@ -223,7 +219,7 @@ export function TradePanel({ info, price, currency }: { info: SymbolInfo; price:
               autoComplete="off"
               value={quantity}
               onChange={(event) => setQuantity(event.target.value.trim())}
-              className="tabular w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-primary focus:border-accent focus:outline-none"
+              className="input"
             />
           </label>
           <p className="text-xs text-muted">
@@ -234,7 +230,7 @@ export function TradePanel({ info, price, currency }: { info: SymbolInfo; price:
               {error}
             </p>
           )}
-          <button type="submit" className="w-full rounded-md bg-accent py-1.5 text-xs font-medium text-surface hover:opacity-90">
+          <button type="submit" className="btn btn-primary w-full">
             Review order
           </button>
         </form>
@@ -250,7 +246,7 @@ export function TradePanel({ info, price, currency }: { info: SymbolInfo; price:
               type="button"
               onClick={() => setStep({ kind: "edit" })}
               disabled={step.kind === "submitting"}
-              className="flex-1 rounded-md border border-border py-1.5 text-xs text-primary hover:bg-surface-2"
+              className="btn flex-1"
             >
               Back
             </button>
@@ -258,7 +254,7 @@ export function TradePanel({ info, price, currency }: { info: SymbolInfo; price:
               type="button"
               onClick={submit}
               disabled={step.kind === "submitting"}
-              className="flex-1 rounded-md bg-accent py-1.5 text-xs font-medium text-surface hover:opacity-90 disabled:opacity-60"
+              className="btn btn-primary flex-1"
             >
               {step.kind === "submitting" ? "Placing…" : `Confirm ${side}`}
             </button>

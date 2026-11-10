@@ -1,22 +1,29 @@
 "use client";
 
-import { AreaSeries, createChart, type IChartApi, type ISeriesApi, type UTCTimestamp } from "lightweight-charts";
-import { useEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
+import { useEffect, useState } from "react";
 
 import { ChangeText, EmptyState, Skeleton } from "@/components/ui/primitives";
 import { ErrorState, StaleBadge } from "@/components/ui/status";
 import { api, toApiError, type ApiError } from "@/lib/api";
-import { CHART_RANGES, INTRADAY_RANGES, rangeChange, toChartPoints } from "@/lib/chart";
-import { formatPrice } from "@/lib/format";
-import { subscribeTheme } from "@/lib/theme";
+import { CHART_RANGES, rangeChange } from "@/lib/chart";
 import type { Chart, ChartRange, Envelope } from "@/types/api";
 
 type Result = { kind: "ready"; chart: Envelope<Chart> } | { kind: "error"; error: ApiError };
 type State = { kind: "loading" } | Result;
 
-function cssVar(name: string): string {
-  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+/** Same footprint as the rendered chart (hover line + canvas), so swapping it in doesn't shift the page. */
+function ChartSkeleton() {
+  return (
+    <div role="status" aria-label="Loading chart">
+      <div className="h-5" />
+      <Skeleton className="h-72 w-full" />
+    </div>
+  );
 }
+
+// The charting library is ~50 kB gzipped: fetch it in parallel with the price history, off the page bundle.
+const ChartCanvas = dynamic(() => import("@/components/stock/ChartCanvas"), { ssr: false, loading: ChartSkeleton });
 
 export function PriceChart({ symbol, currency }: { symbol: string; currency: string | null }) {
   const [range, setRange] = useState<ChartRange>("1M");
@@ -46,8 +53,8 @@ export function PriceChart({ symbol, currency }: { symbol: string; currency: str
 
   return (
     <div>
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <div role="tablist" aria-label="Chart range" className="flex gap-1">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <div role="tablist" aria-label="Chart range" className="flex gap-0.5">
           {CHART_RANGES.map((r) => (
             <button
               key={r}
@@ -55,9 +62,7 @@ export function PriceChart({ symbol, currency }: { symbol: string; currency: str
               type="button"
               aria-selected={r === range}
               onClick={() => setRange(r)}
-              className={`rounded-md px-2.5 py-1 text-xs font-medium ${
-                r === range ? "bg-accent text-surface" : "text-secondary hover:bg-surface-2"
-              }`}
+              className="tab tabular"
             >
               {r}
             </button>
@@ -69,11 +74,7 @@ export function PriceChart({ symbol, currency }: { symbol: string; currency: str
         </div>
       </div>
 
-      {state.kind === "loading" && (
-        <div role="status" aria-label="Loading chart">
-          <Skeleton className="h-72 w-full" />
-        </div>
-      )}
+      {state.kind === "loading" && <ChartSkeleton />}
       {state.kind === "error" && (
         <ErrorState
           message={
@@ -91,111 +92,6 @@ export function PriceChart({ symbol, currency }: { symbol: string; currency: str
       {state.kind === "ready" && bars.length > 0 && (
         <ChartCanvas chart={state.chart.data} currency={currency} />
       )}
-    </div>
-  );
-}
-
-function ChartCanvas({ chart, currency }: { chart: Chart; currency: string | null }) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [hover, setHover] = useState<{ label: string; value: number } | null>(null);
-  const intraday = INTRADAY_RANGES.has(chart.range);
-
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    const theme = () => ({
-      layout: { background: { color: "transparent" }, textColor: cssVar("--text-secondary") },
-      grid: { vertLines: { visible: false }, horzLines: { color: cssVar("--chart-grid") } },
-      rightPriceScale: { borderVisible: false },
-      timeScale: { borderVisible: false, timeVisible: intraday, secondsVisible: false },
-    });
-    const instance: IChartApi = createChart(container, {
-      ...theme(),
-      autoSize: true,
-      height: 288,
-      crosshair: { mode: 0 },
-      handleScroll: false,
-      handleScale: false,
-    });
-    const series: ISeriesApi<"Area"> = instance.addSeries(AreaSeries, {
-      lineColor: cssVar("--chart-line"),
-      topColor: cssVar("--chart-fill"),
-      bottomColor: "rgba(0,0,0,0)",
-      lineWidth: 2,
-      priceLineVisible: false,
-      lastValueVisible: true,
-    });
-    series.setData(
-      toChartPoints(chart.bars, chart.range, chart.timezone).map((p) => ({
-        time: p.time as UTCTimestamp,
-        value: p.value,
-      })),
-    );
-    instance.timeScale().fitContent();
-
-    instance.subscribeCrosshairMove((param) => {
-      const point = param.seriesData.get(series);
-      if (!param.time || !point || !("value" in point)) {
-        setHover(null);
-        return;
-      }
-      const date = new Date(Number(param.time) * 1000);
-      const label = intraday
-        ? date.toISOString().slice(0, 16).replace("T", " ")
-        : date.toISOString().slice(0, 10);
-      setHover({ label, value: point.value });
-    });
-
-    // Restyle when the user toggles the theme or the OS switches between light and dark.
-    const unsubscribeTheme = subscribeTheme(() => {
-      instance.applyOptions(theme());
-      series.applyOptions({ lineColor: cssVar("--chart-line"), topColor: cssVar("--chart-fill") });
-    });
-
-    return () => {
-      unsubscribeTheme();
-      instance.remove();
-    };
-  }, [chart, intraday]);
-
-  const recent = chart.bars.slice(-30).reverse();
-  return (
-    <div>
-      <p className="tabular h-5 text-xs text-secondary" aria-live="polite">
-        {hover ? (
-          <>
-            {hover.label}
-            {intraday && chart.timezone ? ` (${chart.timezone})` : ""} · {formatPrice(hover.value, currency)}
-          </>
-        ) : (
-          <span className="text-muted">Hover the chart for prices</span>
-        )}
-      </p>
-      <div ref={containerRef} className="h-72 w-full" data-testid="price-chart" />
-      <details className="mt-2 text-xs text-secondary">
-        <summary className="cursor-pointer">Show data table</summary>
-        <table className="mt-2 w-full">
-          <thead>
-            <tr className="text-left text-muted">
-              <th scope="col" className="font-normal">
-                Time
-              </th>
-              <th scope="col" className="text-right font-normal">
-                Close
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {recent.map((bar) => (
-              <tr key={bar.timestamp}>
-                <td>{intraday ? bar.timestamp.slice(0, 16).replace("T", " ") + " UTC" : bar.timestamp.slice(0, 10)}</td>
-                <td className="tabular text-right">{formatPrice(bar.close, currency)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </details>
     </div>
   );
 }

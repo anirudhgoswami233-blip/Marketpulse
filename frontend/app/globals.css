@@ -1,133 +1,362 @@
 @import "tailwindcss";
 
 /*
+ * Design tokens. This file is the only place colors, radii and type sizes are defined; components use the
+ * Tailwind names generated from the @theme block below (bg-surface, text-muted, rounded-sm, ...).
+ *
  * Theme: an explicit choice (data-theme on <html>, set from localStorage before paint) wins; with no choice
- * we follow the OS via prefers-color-scheme. The dark tokens appear twice (media query + explicit choice)
- * because CSS can't share one rule between a media query and a selector.
+ * `color-scheme: light dark` follows the OS. Each token is written once as light-dark(light, dark).
  */
-@custom-variant dark {
-  &:where([data-theme="dark"], [data-theme="dark"] *) {
-    @slot;
-  }
-  @media (prefers-color-scheme: dark) {
-    &:where(:root:not([data-theme="light"]), :root:not([data-theme="light"]) *) {
-      @slot;
-    }
-  }
+:root {
+  color-scheme: light dark;
+
+  /* Surfaces: flat, separated by 1px borders (no shadows). */
+  --bg: light-dark(#f6f7f8, #0c0d0f);
+  --surface: light-dark(#ffffff, #131518);
+  --surface-2: light-dark(#eef0f2, #1c1f23);
+  --border: light-dark(#dfe2e6, #2a2e34);
+  /* Form-control outlines: >= 3:1 against the surface. */
+  --border-strong: light-dark(#878d97, #666c76);
+
+  /* Text: all >= 4.5:1 on --surface and --surface-2. */
+  --text-primary: light-dark(#0d0f12, #eceef1);
+  --text-secondary: light-dark(#454a53, #b6bbc4);
+  --text-muted: light-dark(#5f656f, #9399a4);
+
+  /* The one accent: links, primary buttons, selected tabs, focus rings, chart line. */
+  --accent: light-dark(#1a56b8, #74a9f5);
+  --on-accent: light-dark(#ffffff, #0c0d0f);
+
+  /* Semantic price direction. Always paired with ▲/▼ and a sign, never color alone. */
+  --up: light-dark(#0a7537, #3ecf71);
+  --down: light-dark(#c2252d, #ff7a75);
+  --neutral: var(--text-secondary);
+  --up-flash: light-dark(rgba(10, 117, 55, 0.2), rgba(62, 207, 113, 0.24));
+  --down-flash: light-dark(rgba(194, 37, 45, 0.18), rgba(255, 122, 117, 0.24));
+  --scrim: rgba(0, 0, 0, 0.55);
+
+  --chart-line: var(--accent);
+  --chart-grid: light-dark(#eceef1, #1f2227);
+
+  /* Sector heatmap: diverging green (gain) <-> red (loss) around a neutral gray; four steps per arm. */
+  --div-up-1: light-dark(#d9efe0, #17382a);
+  --div-up-2: light-dark(#a3d9b4, #1d5a37);
+  --div-up-3: light-dark(#1b8445, #2c9a57);
+  --div-up-4: light-dark(#0b6130, #4fd183);
+  --div-down-1: light-dark(#fbdcd9, #47201f);
+  --div-down-2: light-dark(#f3a8a2, #7f2b2a);
+  --div-down-3: light-dark(#cf3a39, #d0504d);
+  --div-down-4: light-dark(#a31f25, #f08480);
+  --div-mid: light-dark(#eef0f2, #2a2e34);
+  /* Ink on heatmap tiles: steps 1-2 take the soft ink, steps 3-4 the strong ink. */
+  --on-div-strong: light-dark(#ffffff, #0c0d0f);
+  --on-div-soft: light-dark(#0d0f12, #eceef1);
 }
 
-:root,
 [data-theme="light"] {
   color-scheme: light;
-  --bg: #f4f4f2;
-  --surface: #fcfcfb;
-  --surface-2: #f0efec;
-  --border: #e2e1dc;
-  --text-primary: #0b0b0b;
-  --text-secondary: #52514e;
-  --text-muted: #6e6d68;
-  --accent: #1c5cab;
-  /* Gain/loss text: >= 4.5:1 on --surface, always paired with ▲/▼ and a sign. */
-  --up: #0a7a0a;
-  --down: #c62f2f;
-  --chart-line: #2a78d6;
-  --chart-fill: rgba(42, 120, 214, 0.14);
-  --chart-grid: #ecebe7;
-  /* Diverging heatmap: blue (gain) <-> red (loss) around a neutral gray. */
-  --div-up-1: #cde2fb;
-  --div-up-2: #86b6ef;
-  --div-up-3: #2a78d6;
-  --div-up-4: #1c5cab;
-  --div-down-1: #fbd5d1;
-  --div-down-2: #f29c94;
-  --div-down-3: #e34948;
-  --div-down-4: #b8322a;
-  --div-mid: #f0efec;
-  --on-div-strong: #ffffff;
-  --on-div-soft: #0b0b0b;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark;
-    --bg: #121211;
-    --surface: #1a1a19;
-    --surface-2: #242422;
-    --border: #2e2e2b;
-    --text-primary: #f0efec;
-    --text-secondary: #c3c2b7;
-    --text-muted: #a3a296;
-    --accent: #6da7ec;
-    --up: #4cc94c;
-    --down: #ff7b72;
-    --chart-line: #3987e5;
-    --chart-fill: rgba(57, 135, 229, 0.18);
-    --chart-grid: #262624;
-    --div-up-1: #1f3550;
-    --div-up-2: #184f95;
-    --div-up-3: #2a78d6;
-    --div-up-4: #5598e7;
-    --div-down-1: #4a2523;
-    --div-down-2: #8f2f2c;
-    --div-down-3: #c43d3b;
-    --div-down-4: #e66767;
-    --div-mid: #383835;
-    --on-div-strong: #0b0b0b;
-    --on-div-soft: #f0efec;
-  }
 }
 
 [data-theme="dark"] {
   color-scheme: dark;
-  --bg: #121211;
-  --surface: #1a1a19;
-  --surface-2: #242422;
-  --border: #2e2e2b;
-  --text-primary: #f0efec;
-  --text-secondary: #c3c2b7;
-  --text-muted: #a3a296;
-  --accent: #6da7ec;
-  --up: #4cc94c;
-  --down: #ff7b72;
-  --chart-line: #3987e5;
-  --chart-fill: rgba(57, 135, 229, 0.18);
-  --chart-grid: #262624;
-  --div-up-1: #1f3550;
-  --div-up-2: #184f95;
-  --div-up-3: #2a78d6;
-  --div-up-4: #5598e7;
-  --div-down-1: #4a2523;
-  --div-down-2: #8f2f2c;
-  --div-down-3: #c43d3b;
-  --div-down-4: #e66767;
-  --div-mid: #383835;
-  --on-div-strong: #0b0b0b;
-  --on-div-soft: #f0efec;
 }
 
 @theme inline {
+  /* Only the tokens above are available as utilities: no default palette, shadows or large radii. */
+  --color-*: initial;
   --color-bg: var(--bg);
   --color-surface: var(--surface);
   --color-surface-2: var(--surface-2);
   --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
   --color-primary: var(--text-primary);
   --color-secondary: var(--text-secondary);
   --color-muted: var(--text-muted);
   --color-accent: var(--accent);
+  --color-on-accent: var(--on-accent);
   --color-up: var(--up);
   --color-down: var(--down);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-scrim: var(--scrim);
+  --color-white: #ffffff;
+  --color-transparent: transparent;
+
+  --radius-*: initial;
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+
+  --shadow-*: initial;
+
+  --font-sans: var(--font-geist-sans), system-ui, -apple-system, "Segoe UI", sans-serif;
+  /* Section labels and table headers. */
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1rem;
 }
 
-body {
-  background: var(--bg);
-  color: var(--text-primary);
-  font-family: var(--font-sans), system-ui, sans-serif;
+@layer base {
+  body {
+    background: var(--bg);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+  }
+
+  /* One focus style everywhere, for keyboard users only. */
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+
+  /* Numbers in tables and form fields keep a fixed width so columns align and live prices don't jitter. */
+  table,
+  input,
+  output,
+  time {
+    font-variant-numeric: tabular-nums;
+  }
 }
 
-.tabular {
-  font-variant-numeric: tabular-nums;
+@layer components {
+  /* Any price, percentage or count outside a table. */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Small uppercase label: card titles, table headers, section headings. */
+  .section-label {
+    font-size: var(--text-2xs);
+    line-height: 1rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    padding: 0.25rem 0.625rem;
+    font-size: 0.75rem;
+    line-height: 1rem;
+    font-weight: 500;
+    white-space: nowrap;
+    color: var(--text-primary);
+  }
+  .btn:hover:not(:disabled) {
+    background: var(--surface-2);
+  }
+  .btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+  .btn-primary {
+    border-color: var(--accent);
+    background: var(--accent);
+    color: var(--on-accent);
+  }
+  .btn-primary:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--accent) 88%, var(--text-primary));
+  }
+  .btn-danger {
+    color: var(--down);
+  }
+  .btn-danger-solid {
+    border-color: var(--down);
+    background: var(--down);
+    color: var(--on-accent);
+  }
+  .btn-danger-solid:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--down) 88%, var(--text-primary));
+  }
+  /* Header-sized controls. */
+  .btn-md {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.8125rem;
+  }
+
+  .input {
+    width: 100%;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    padding: 0.3125rem 0.5rem;
+    font-size: 0.8125rem;
+    line-height: 1.25rem;
+    color: var(--text-primary);
+  }
+  .input::placeholder {
+    color: var(--text-muted);
+  }
+  .input:focus-visible {
+    border-color: var(--accent);
+    outline-offset: 0;
+  }
+
+  /* Selected/unselected segmented tabs (chart range, calendar, watchlists, filters). */
+  .tab {
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    padding: 0.1875rem 0.5rem;
+    font-size: 0.75rem;
+    line-height: 1rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+  }
+  .tab:hover {
+    background: var(--surface-2);
+    color: var(--text-primary);
+  }
+  .tab[aria-selected="true"],
+  .tab[aria-current="page"],
+  .tab[aria-checked="true"] {
+    border-color: var(--accent);
+    background: var(--accent);
+    color: var(--on-accent);
+  }
+
+  /* Rectangular status label (market open/closed, signal label, stale data). */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xs);
+    padding: 0 0.375rem;
+    font-size: var(--text-2xs);
+    line-height: 1.125rem;
+    font-weight: 500;
+    white-space: nowrap;
+    color: var(--text-secondary);
+  }
+  .badge-up {
+    border-color: color-mix(in srgb, var(--up) 45%, transparent);
+    color: var(--up);
+  }
+  .badge-down {
+    border-color: color-mix(in srgb, var(--down) 45%, transparent);
+    color: var(--down);
+  }
+
+  /* Inline message strip for form/action errors and notes. */
+  .notice {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface-2);
+    padding: 0.375rem 0.625rem;
+    font-size: 0.8125rem;
+    line-height: 1.125rem;
+    color: var(--text-secondary);
+  }
+
+  /*
+   * Dense data table: uppercase header row, hairline row rules, 13px text. Add `.num` to right-align a
+   * numeric column. Inside a flush Card the first/last cells line up with the card's header padding.
+   */
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8125rem;
+    line-height: 1.125rem;
+  }
+  .data-table th,
+  .data-table td {
+    padding: 0.3125rem 0.5rem;
+    text-align: left;
+    vertical-align: middle;
+  }
+  .data-table th:first-child,
+  .data-table td:first-child {
+    padding-left: 0.75rem;
+  }
+  .data-table th:last-child,
+  .data-table td:last-child {
+    padding-right: 0.75rem;
+  }
+  .data-table thead th {
+    border-bottom: 1px solid var(--border);
+    font-size: var(--text-2xs);
+    line-height: 1rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    color: var(--text-muted);
+  }
+  .data-table tbody tr + tr > * {
+    border-top: 1px solid var(--border);
+  }
+  .data-table tbody tr:hover {
+    background: var(--surface-2);
+  }
+  .data-table .num {
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  /* Label/value rows (key statistics, company profile). */
+  .kv-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+    border-bottom: 1px solid var(--border);
+    padding: 0.3125rem 0;
+    font-size: 0.8125rem;
+    line-height: 1.125rem;
+  }
+  .kv-row:last-child {
+    border-bottom: 0;
+  }
+
+  /* Plain loading placeholder. */
+  .skeleton {
+    border-radius: var(--radius-xs);
+    background: var(--surface-2);
+    animation: skeleton-pulse 1.6s ease-in-out infinite;
+  }
+
+  /* Live tick: a brief background flash behind the price that just changed. */
+  .tick {
+    margin: 0 -0.1875rem;
+    border-radius: var(--radius-xs);
+    padding: 0 0.1875rem;
+  }
+  .tick-up {
+    animation: tick-up 0.7s ease-out;
+  }
+  .tick-down {
+    animation: tick-down 0.7s ease-out;
+  }
+}
+
+@keyframes skeleton-pulse {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@keyframes tick-up {
+  from {
+    background-color: var(--up-flash);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+
+@keyframes tick-down {
+  from {
+    background-color: var(--down-flash);
+  }
+  to {
+    background-color: transparent;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

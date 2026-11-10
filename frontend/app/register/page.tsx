@@ -7,9 +7,9 @@ export const metadata = { title: "Create account" };
 
 export default function RegisterPage() {
   return (
-    <div className="mx-auto max-w-sm py-8">
-      <h1 className="mb-1 text-2xl font-semibold text-primary">Create your account</h1>
-      <p className="mb-4 text-sm text-secondary">
+    <div className="mx-auto max-w-sm py-6">
+      <h1 className="mb-1 text-lg font-semibold text-primary">Create your account</h1>
+      <p className="mb-3 text-[13px] text-secondary">
         Save watchlists and practise trading with $100,000 of virtual money. No real money is involved.
       </p>
       <Card>

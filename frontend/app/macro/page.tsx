@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 
 import { MiniLineChart } from "@/components/macro/MiniLineChart";
-import { Card, EmptyState, SkeletonBlock } from "@/components/ui/primitives";
+import { Card, EmptyState, PageHeader, SkeletonBlock } from "@/components/ui/primitives";
 import { ErrorState, StaleBadge } from "@/components/ui/status";
 import { api, toApiError } from "@/lib/api";
 import { formatDate } from "@/lib/format";
@@ -11,13 +11,10 @@ export const metadata = { title: "Macro" };
 
 export default function MacroPage() {
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-semibold text-primary">Macro dashboard</h1>
-        <p className="mt-1 text-sm text-secondary">
-          Interest rates, inflation and jobs from the Federal Reserve Bank of St. Louis (FRED), over the last five years.
-        </p>
-      </div>
+    <div className="space-y-3">
+      <PageHeader title="Macro dashboard">
+        Interest rates, inflation and jobs from the Federal Reserve Bank of St. Louis (FRED), over the last five years.
+      </PageHeader>
       <Suspense fallback={<MacroSkeleton />}>
         <Dashboard />
       </Suspense>
@@ -42,13 +39,13 @@ async function Dashboard() {
   }
   const groups = [...new Set(data.cards.map((c) => c.group))];
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {groups.map((group) => (
         <section key={group} aria-labelledby={`group-${group}`}>
-          <h2 id={`group-${group}`} className="mb-2 text-sm font-semibold tracking-wide text-secondary uppercase">
+          <h2 id={`group-${group}`} className="section-label mb-1.5">
             {group}
           </h2>
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             {data.cards
               .filter((c) => c.group === group)
               .map((card) => (
@@ -81,12 +78,12 @@ function MacroCardView({ card }: { card: MacroCard }) {
   return (
     <Card title={card.title}>
       {card.latest ? (
-        <div className="space-y-2">
-          <div className="flex items-baseline justify-between gap-2">
-            <span className="tabular text-2xl font-semibold text-primary">{formatValue(card.latest.value, card.unit)}</span>
+        <div className="space-y-1">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-2">
+            <span className="tabular text-xl font-semibold text-primary">{formatValue(card.latest.value, card.unit)}</span>
             {change !== null && (
               <span className="tabular text-xs text-secondary">
-                {change > 0 ? "▲" : change < 0 ? "▼" : "●"} {change > 0 ? "+" : ""}
+                <span className="text-[0.7em]">{change > 0 ? "▲" : change < 0 ? "▼" : "●"}</span> {change > 0 ? "+" : ""}
                 {change.toFixed(2)} {unit} vs prior
               </span>
             )}
@@ -111,10 +108,10 @@ function MacroCardView({ card }: { card: MacroCard }) {
 
 function MacroSkeleton() {
   return (
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4" role="status" aria-label="Loading macro data">
+    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4" role="status" aria-label="Loading macro data">
       {Array.from({ length: 8 }, (_, i) => (
         <Card key={i}>
-          <SkeletonBlock lines={6} label="Loading series" />
+          <SkeletonBlock lines={11} label="Loading series" />
         </Card>
       ))}
     </div>

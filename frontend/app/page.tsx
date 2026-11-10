@@ -7,20 +7,17 @@ import { MoversTable } from "@/components/markets/MoversTable";
 import { SectorHeatmap } from "@/components/markets/SectorHeatmap";
 import { BriefTeaser } from "@/components/signals/BriefTeaser";
 import { AutoRefresh } from "@/components/ui/AutoRefresh";
-import { Card, Skeleton, SkeletonBlock } from "@/components/ui/primitives";
+import { Card, PageHeader, Skeleton, SkeletonBlock } from "@/components/ui/primitives";
 import { ErrorState, LocalTime, StaleBadge } from "@/components/ui/status";
 import { api, toApiError } from "@/lib/api";
 import type { MarketOverview } from "@/types/api";
 
 export default function MarketsPage() {
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-primary">Global markets</h1>
-        <p className="mt-1 text-sm text-secondary">
-          Regional indices are shown through US-listed ETFs that track them, so they move during US trading hours.
-        </p>
-      </div>
+    <div className="space-y-4">
+      <PageHeader title="Global markets">
+        Regional indices are shown through US-listed ETFs that track them, so they move during US trading hours.
+      </PageHeader>
       <BriefTeaser />
       <Suspense fallback={<OverviewSkeleton />}>
         <Overview />
@@ -39,7 +36,7 @@ async function Overview() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <AutoRefresh intervalMs={60_000} />
       <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
         {overview.as_of ? (
@@ -54,51 +51,52 @@ async function Overview() {
       </div>
 
       <LiveQuotesProvider symbols={overview.regions.flatMap((r) => r.indices.map((i) => i.symbol))}>
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid items-start gap-3 md:grid-cols-2 xl:grid-cols-4">
           {overview.regions.map((region) => (
-            <Card key={region.region} title={region.region}>
-              <div className="space-y-4">
-                <IndexGrid indices={region.indices} />
-                <MarketStatusList markets={region.markets} />
-              </div>
+            <Card key={region.region} title={region.region} flush>
+              <IndexGrid indices={region.indices} region={region.region} />
+              <MarketStatusList markets={region.markets} />
             </Card>
           ))}
         </div>
       </LiveQuotesProvider>
 
-      <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
+      <div className="grid items-start gap-3 lg:grid-cols-[2fr_1fr_1fr]">
         <Card title="Sector heatmap">
           <SectorHeatmap sectors={overview.sectors} />
         </Card>
-        <Card title="Top movers">
-          <div className="space-y-5">
-            <MoversTable title="Gainers" movers={overview.gainers} />
-            <MoversTable title="Losers" movers={overview.losers} />
-            <p className="text-xs text-muted">Among {overview.movers_universe_size} large-cap US stocks we track.</p>
-          </div>
+        <Card title="Top gainers" flush>
+          <MoversTable title="Gainers" movers={overview.gainers} />
+        </Card>
+        <Card title="Top losers" flush>
+          <MoversTable title="Losers" movers={overview.losers} />
         </Card>
       </div>
+      <p className="text-xs text-muted">Movers are ranked among {overview.movers_universe_size} large-cap US stocks we track.</p>
     </div>
   );
 }
 
 function OverviewSkeleton() {
   return (
-    <div className="space-y-6" role="status" aria-label="Loading markets overview">
+    <div className="space-y-4" role="status" aria-label="Loading markets overview">
       <Skeleton className="h-4 w-48" />
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         {Array.from({ length: 4 }, (_, i) => (
           <Card key={i}>
-            <SkeletonBlock lines={5} label="Loading region" />
+            <SkeletonBlock lines={12} label="Loading region" />
           </Card>
         ))}
       </div>
-      <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
+      <div className="grid items-start gap-3 lg:grid-cols-[2fr_1fr_1fr]">
         <Card>
-          <Skeleton className="h-40 w-full" />
+          <Skeleton className="h-44 w-full" />
         </Card>
         <Card>
-          <SkeletonBlock lines={8} label="Loading movers" />
+          <SkeletonBlock lines={7} label="Loading gainers" />
+        </Card>
+        <Card>
+          <SkeletonBlock lines={7} label="Loading losers" />
         </Card>
       </div>
     </div>

@@ -86,6 +86,12 @@ Update this section if commands change.
 - Money and prices: use `Decimal` in Python for portfolio math; format with locale-aware formatters in the UI. Always store currency alongside price.
 - Times: store UTC, convert to user/exchange timezone only for display. Market hours use the exchange's own timezone.
 - Every data-driven UI shows: loading skeleton, empty state, error state, and "data as of HH:MM" when cached.
+- **Visual system:** all colors, radii and type sizes are tokens in `frontend/app/globals.css` (each color written once as
+  `light-dark(light, dark)`; the default Tailwind palette, shadows and large radii are switched off). Flat surfaces with
+  1px borders, 4–6px radius, no gradients/shadows/blur. Use the shared classes (`.btn`, `.input`, `.tab`, `.badge`,
+  `.data-table` + `.num`, `.section-label`) and `Card`/`PageHeader` instead of new one-off styles. Numbers are
+  tabular (`.tabular`, automatic in tables); live prices go through `PriceTick`; changes show ▲/▼ plus color.
+  Charts read tokens via `lib/chartTheme.ts` and are loaded with `next/dynamic` (keep the library out of page bundles).
 - Next.js 16 with Cache Components: read `frontend/node_modules/next/dist/docs/` before using an unfamiliar API (see `frontend/AGENTS.md`). Server components fetch inside `<Suspense>`; live prices come from one shared SSE stream per page (`LiveQuotesProvider`), never one per widget. Never read the clock (`new Date()`, `Date.now()`) or randomness in a server component before `await connection()`; ESLint enforces this for `app/**`. Client components may read it only in effects or event handlers.
 
 ## Daily Market Brief — non-negotiables

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 import { Disclaimer, SignalBadge, SignalCard } from "@/components/signals/SignalCard";
-import { Card, EmptyState, SkeletonBlock } from "@/components/ui/primitives";
+import { Card, EmptyState, PageHeader, SkeletonBlock } from "@/components/ui/primitives";
 import { ErrorState } from "@/components/ui/status";
 import { api, toApiError } from "@/lib/api";
 import { formatPct } from "@/lib/format";
@@ -15,19 +15,24 @@ const HORIZONS = [1, 5, 20];
 
 export default function SignalsPage({ searchParams }: PageProps<"/signals">) {
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       <div>
-        <h1 className="text-2xl font-semibold text-primary">Signal history</h1>
-        <p className="mt-1 max-w-3xl text-sm text-secondary">
+        <PageHeader title="Signal history">
           Every signal is stored with the price at the time, so you can check whether the labels have been useful. A
           bullish label counts as a hit if the price rose over the period; a bearish label if it fell.
-        </p>
-        <div className="mt-2">
+        </PageHeader>
+        <div className="mt-1">
           <Disclaimer />
         </div>
       </div>
-      <Card title="How past signals performed">
-        <Suspense fallback={<SkeletonBlock lines={6} label="Loading performance" />}>
+      <Card title="How past signals performed" flush>
+        <Suspense
+          fallback={
+            <div className="p-3">
+              <SkeletonBlock lines={6} label="Loading performance" />
+            </div>
+          }
+        >
           <Performance />
         </Suspense>
       </Card>
@@ -44,42 +49,48 @@ async function Performance() {
     data = await api.signalPerformance();
   } catch (error) {
     const e = toApiError(error);
-    return <ErrorState message={e.message} retryable={e.retryable} />;
+    return (
+      <div className="p-3">
+        <ErrorState message={e.message} retryable={e.retryable} />
+      </div>
+    );
   }
   const byKey = new Map(data.stats.map((s) => [`${s.label}|${s.horizon_days}`, s]));
   const measured = data.stats.reduce((n, s) => n + s.count, 0);
   if (measured === 0) {
     return (
-      <EmptyState title="No results to measure yet">
-        {data.total_signals === 0
-          ? "Signals appear here once briefs or stock pages generate them."
-          : `${data.total_signals} signal${data.total_signals === 1 ? " has" : "s have"} been recorded. Results appear after the next trading session closes.`}
-      </EmptyState>
+      <div className="p-3">
+        <EmptyState title="No results to measure yet">
+          {data.total_signals === 0
+            ? "Signals appear here once briefs or stock pages generate them."
+            : `${data.total_signals} signal${data.total_signals === 1 ? " has" : "s have"} been recorded. Results appear after the next trading session closes.`}
+        </EmptyState>
+      </div>
     );
   }
   return (
-    <div className="space-y-3">
+    <div>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[36rem] text-sm">
+        <table className="data-table min-w-[36rem]">
           <caption className="sr-only">Average return and hit rate by label and holding period</caption>
           <thead>
-            <tr className="text-left text-xs text-muted">
-              <th scope="col" className="pb-2 font-normal">Label</th>
+            <tr>
+              <th scope="col">Label</th>
               {HORIZONS.map((h) => (
-                <th key={h} scope="col" className="pb-2 text-right font-normal">
+                <th key={h} scope="col" className="num">
                   After {h} {h === 1 ? "day" : "days"}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-border">
+          <tbody>
             {LABELS.map((label) => (
               <tr key={label}>
-                <th scope="row" className="py-2 text-left font-normal">
+                <th scope="row" className="font-normal">
                   <SignalBadge label={label} />
                 </th>
                 {HORIZONS.map((h) => (
-                  <td key={h} className="py-2 text-right align-top">
+                  <td key={h} className="num align-top">
                     <StatCell stats={byKey.get(`${label}|${h}`)} />
                   </td>
                 ))}
@@ -88,7 +99,7 @@ async function Performance() {
           </tbody>
         </table>
       </div>
-      <p className="text-xs text-muted">
+      <p className="border-t border-border px-3 py-2 text-xs text-muted">
         Cells marked “small sample” have fewer than {data.min_sample} results and shouldn&apos;t be read as evidence either
         way. Past results don&apos;t predict future returns.
       </p>
@@ -99,7 +110,7 @@ async function Performance() {
 function StatCell({ stats }: { stats: LabelStats | undefined }) {
   if (!stats || stats.count === 0) return <span className="text-muted">—</span>;
   return (
-    <div className="tabular space-y-0.5">
+    <div className="tabular">
       <div className="text-primary">avg {formatPct(stats.avg_return_pct)}</div>
       {stats.hit_rate_pct !== null && <div className="text-xs text-secondary">hit rate {Number(stats.hit_rate_pct).toFixed(1)}%</div>}
       <div className="text-xs text-muted">
@@ -124,7 +135,7 @@ async function RecentSignals({ searchParams }: { searchParams: PageProps<"/signa
     <Card
       title="Recent signals"
       action={
-        <nav aria-label="Filter by label" className="flex flex-wrap gap-1 text-xs">
+        <nav aria-label="Filter by label" className="flex flex-wrap gap-0.5">
           <FilterLink label={undefined} active={label === undefined} />
           {LABELS.map((l) => (
             <FilterLink key={l} label={l} active={label === l} />
@@ -140,7 +151,7 @@ async function RecentSignals({ searchParams }: { searchParams: PageProps<"/signa
       ) : (
         <ul className="divide-y divide-border">
           {signals.map((signal) => (
-            <li key={signal.id} className="py-4">
+            <li key={signal.id} className="py-3 first:pt-0 last:pb-0">
               <SignalCard signal={signal} showSymbol showDisclaimer={false} />
             </li>
           ))}
@@ -155,7 +166,7 @@ function FilterLink({ label, active }: { label: SignalLabel | undefined; active:
     <Link
       href={label ? `/signals?label=${encodeURIComponent(label)}` : "/signals"}
       aria-current={active ? "page" : undefined}
-      className={`rounded-full px-2.5 py-1 ${active ? "bg-accent text-surface" : "border border-border text-secondary hover:text-primary"}`}
+      className="tab"
     >
       {label ?? "All"}
     </Link>

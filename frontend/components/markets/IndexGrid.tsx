@@ -3,51 +3,67 @@
 import Link from "next/link";
 
 import { useSharedLiveQuotes } from "@/components/markets/LiveQuotesProvider";
+import { PriceTick } from "@/components/ui/PriceTick";
 import { ChangeText, Skeleton } from "@/components/ui/primitives";
 import { formatPrice } from "@/lib/format";
 import { mergeLiveTrade } from "@/lib/quotes";
 import type { IndexCard } from "@/types/api";
 
 /** Region index proxies (US-listed ETFs) with live prices layered on the snapshot quote. */
-export function IndexGrid({ indices }: { indices: IndexCard[] }) {
+export function IndexGrid({ indices, region }: { indices: IndexCard[]; region?: string }) {
   const { trades } = useSharedLiveQuotes();
   return (
-    <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-      {indices.map((index) => {
-        const display = mergeLiveTrade(index.quote, trades[index.symbol]);
-        return (
-          <li key={index.symbol}>
-            <Link
-              href={`/stock/${encodeURIComponent(index.symbol)}`}
-              className="block rounded-lg border border-border px-3 py-2 hover:bg-surface-2"
-              title={`${index.symbol} is a US-listed ETF tracking ${index.tracks}; it trades during US market hours.`}
-            >
-              <div className="flex items-baseline justify-between gap-2">
-                <span className="truncate text-sm font-medium text-primary">{index.name}</span>
-                <span className="shrink-0 text-xs text-muted">{index.symbol}</span>
-              </div>
+    <table className="data-table">
+      <caption className="sr-only">{region ? `${region} index proxies` : "Index proxies"}</caption>
+      <thead>
+        <tr>
+          <th scope="col">Index (ETF)</th>
+          <th scope="col" className="num">
+            Price
+          </th>
+          <th scope="col" className="num">
+            Change
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        {indices.map((index) => {
+          const display = mergeLiveTrade(index.quote, trades[index.symbol]);
+          return (
+            <tr key={index.symbol}>
+              <td className="max-w-0 w-full truncate">
+                <Link
+                  href={`/stock/${encodeURIComponent(index.symbol)}`}
+                  className="font-medium text-primary hover:text-accent"
+                  title={`${index.symbol} is a US-listed ETF tracking ${index.tracks}; it trades during US market hours.`}
+                >
+                  {index.name}
+                </Link>{" "}
+                <span className="text-2xs text-muted">{index.symbol}</span>
+              </td>
               {display ? (
-                <div className="mt-1 flex items-baseline justify-between gap-2 text-sm">
-                  <span className="tabular text-primary">
-                    {formatPrice(display.price, index.quote?.currency ?? "USD")}
+                <>
+                  <td className="num text-primary">
                     {display.live && (
-                      <span className="ml-1 text-xs text-up" aria-label="live">
+                      <span className="mr-1 text-[0.6em] text-up" role="img" aria-label="live">
                         ●
                       </span>
                     )}
-                  </span>
-                  <ChangeText changePct={display.changePct} className="text-xs" />
-                </div>
+                    <PriceTick value={display.price}>{formatPrice(display.price, index.quote?.currency ?? "USD")}</PriceTick>
+                  </td>
+                  <td className="num">
+                    <ChangeText changePct={display.changePct} />
+                  </td>
+                </>
               ) : (
-                <div className="mt-2 flex justify-between" role="status" aria-label={`Loading ${index.name}`}>
-                  <Skeleton className="h-4 w-20" />
-                  <Skeleton className="h-4 w-14" />
-                </div>
+                <td colSpan={2} role="status" aria-label={`Loading ${index.name}`}>
+                  <Skeleton className="ml-auto h-3.5 w-28" />
+                </td>
               )}
-            </Link>
-          </li>
-        );
-      })}
-    </ul>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
   );
 }

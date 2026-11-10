@@ -29,11 +29,8 @@ export function LocalTime({ iso, withDate = false }: { iso: string; withDate?: b
 export function StaleBadge({ asOf, stale }: { asOf: string | null; stale: boolean }) {
   if (!stale || !asOf) return null;
   return (
-    <span
-      className="inline-flex items-center gap-1 rounded-full bg-surface-2 px-2 py-0.5 text-xs text-secondary"
-      title="Live data is temporarily unavailable; showing the most recent cached data."
-    >
-      <span aria-hidden>⏱</span> Data as of <LocalTime iso={asOf} />
+    <span className="badge" title="Live data is temporarily unavailable; showing the most recent cached data.">
+      Data as of <LocalTime iso={asOf} />
     </span>
   );
 }
@@ -52,15 +49,10 @@ export function ErrorState({
   const [pending, startTransition] = useTransition();
   const retry = onRetry ?? (() => startTransition(() => router.refresh()));
   return (
-    <div role="alert" className="rounded-lg border border-border bg-surface-2 px-4 py-5 text-sm">
+    <div role="alert" className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-sm border border-border bg-surface-2 px-3 py-2.5 text-[13px]">
       <p className="text-primary">{message}</p>
       {retryable && (
-        <button
-          type="button"
-          onClick={retry}
-          disabled={pending}
-          className="mt-3 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-primary hover:bg-surface disabled:opacity-60"
-        >
+        <button type="button" onClick={retry} disabled={pending} className="btn">
           {pending ? "Retrying…" : "Try again"}
         </button>
       )}

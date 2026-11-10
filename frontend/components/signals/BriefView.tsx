@@ -54,10 +54,10 @@ export function BriefView({ date }: { date: string | null }) {
   const showing = date ? (older.state.kind === "ready" ? older.state.data : null) : data.brief;
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_18rem]">
-      <div className="min-w-0 space-y-4">
+    <div className="grid items-start gap-3 lg:grid-cols-[1fr_18rem]">
+      <div className="min-w-0 space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-sm text-secondary">
+          <p className="text-[13px] text-secondary">
             {data.next_scheduled_at ? (
               <>
                 Your next brief is scheduled for <LocalTime iso={data.next_scheduled_at} />. Briefs run on weekdays.
@@ -70,18 +70,18 @@ export function BriefView({ date }: { date: string | null }) {
             type="button"
             onClick={generate}
             disabled={generating}
-            className="rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-surface hover:opacity-90 disabled:opacity-60"
+            className="btn btn-primary"
           >
             {generating ? "Generating…" : "Generate now"}
           </button>
         </div>
         {startError && (
-          <p role="alert" className="text-sm text-down">
+          <p role="alert" className="notice text-down">
             {startError}
           </p>
         )}
         {generating && (
-          <p role="status" className="rounded-md bg-surface-2 px-3 py-2 text-sm text-secondary">
+          <p role="status" className="notice">
             Building your brief. Signals are computed one symbol at a time to stay within data-provider limits, so this
             can take a few minutes for a long watchlist.
           </p>
@@ -105,11 +105,11 @@ export function BriefView({ date }: { date: string | null }) {
           )
         )}
       </div>
-      <aside className="space-y-4">
+      <aside className="space-y-3">
         <BriefSettings emailAvailable={data.email_available} onSaved={status.reload} />
         <Card title="Past briefs">
           {history.state.kind === "ready" && history.state.data.length > 0 ? (
-            <ul className="space-y-1 text-sm">
+            <ul className="tabular space-y-1 text-[13px]">
               {history.state.data.map((b) => (
                 <li key={b.brief_date}>
                   <Link href={`/brief?date=${b.brief_date}`} className="text-accent hover:underline">
@@ -122,7 +122,7 @@ export function BriefView({ date }: { date: string | null }) {
           ) : history.state.kind === "loading" ? (
             <SkeletonBlock lines={3} label="Loading past briefs" />
           ) : (
-            <p className="text-sm text-muted">None yet.</p>
+            <p className="text-[13px] text-muted">None yet.</p>
           )}
         </Card>
       </aside>
@@ -137,7 +137,7 @@ function BriefContent({ brief }: { brief: Brief }) {
   }));
   const counts = LABEL_ORDER.map((label) => ({ label, n: brief.items.filter((i) => i.signal.label === label).length }));
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <Card title={`Brief for ${formatDate(brief.brief_date)}`}>
         <p className="mb-3 text-xs text-muted">
           Generated <LocalTime iso={brief.generated_at} withDate />
@@ -150,15 +150,15 @@ function BriefContent({ brief }: { brief: Brief }) {
             </span>
           ))}
         </div>
-        <h3 className="mb-2 text-sm font-medium text-primary">Overnight (regional ETF proxies)</h3>
+        <h3 className="section-label mb-1.5">Overnight (regional ETF proxies)</h3>
         <ul className="grid gap-2 sm:grid-cols-2">
           {brief.overnight.regions.map((r) => (
-            <li key={r.region} className="rounded-lg border border-border px-3 py-2 text-sm">
+            <li key={r.region} className="rounded-sm border border-border px-2.5 py-1.5 text-[13px]">
               <div className="flex justify-between gap-2">
                 <span className="font-medium text-primary">{r.region}</span>
                 <span className="tabular text-secondary">{r.avg_change_pct === null ? "n/a" : formatPct(r.avg_change_pct)}</span>
               </div>
-              <p className="mt-1 text-xs text-muted">{r.detail.join(", ") || "No data"}</p>
+              <p className="tabular mt-0.5 text-xs text-muted">{r.detail.join(", ") || "No data"}</p>
             </li>
           ))}
         </ul>
@@ -181,7 +181,7 @@ function BriefContent({ brief }: { brief: Brief }) {
           ) : (
             <ul className="divide-y divide-border">
               {items.map(({ signal }) => (
-                <li key={signal.id} className="py-3">
+                <li key={signal.id} className="py-2.5 first:pt-0 last:pb-0">
                   <SignalCard signal={signal} showSymbol compact showDisclaimer={false} />
                 </li>
               ))}
@@ -227,7 +227,7 @@ function BriefSettings({ emailAvailable, onSaved }: { emailAvailable: boolean; o
 
   return (
     <Card title="Brief settings">
-      <form action={save} className="space-y-3 text-sm">
+      <form action={save} className="space-y-2.5 text-[13px]">
         <label className="block space-y-1">
           <span className="text-secondary">Time (your timezone)</span>
           <input
@@ -235,7 +235,7 @@ function BriefSettings({ emailAvailable, onSaved }: { emailAvailable: boolean; o
             name="brief_time"
             defaultValue={user.brief_time.slice(0, 5)}
             required
-            className="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-primary"
+            className="input"
           />
         </label>
         <label className="block space-y-1">
@@ -243,7 +243,7 @@ function BriefSettings({ emailAvailable, onSaved }: { emailAvailable: boolean; o
           <select
             name="timezone"
             defaultValue={user.timezone}
-            className="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-primary"
+            className="input"
           >
             {(TIMEZONES.includes(user.timezone) ? TIMEZONES : [user.timezone, ...TIMEZONES]).map((tz) => (
               <option key={tz} value={tz}>
@@ -268,7 +268,7 @@ function BriefSettings({ emailAvailable, onSaved }: { emailAvailable: boolean; o
         <button
           type="submit"
           disabled={saving}
-          className="w-full rounded-md border border-border py-1.5 text-xs font-medium text-primary hover:bg-surface-2 disabled:opacity-60"
+          className="btn w-full"
         >
           {saving ? "Saving…" : "Save settings"}
         </button>

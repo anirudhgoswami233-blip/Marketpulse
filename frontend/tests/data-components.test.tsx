@@ -10,7 +10,7 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn(), push: 
 // The chart library needs a real canvas; stub it and assert on our own states instead.
 const setData = vi.fn();
 vi.mock("lightweight-charts", () => ({
-  AreaSeries: {},
+  LineSeries: {},
   createChart: () => ({
     addSeries: () => ({ setData, applyOptions: vi.fn() }),
     timeScale: () => ({ fitContent: vi.fn() }),

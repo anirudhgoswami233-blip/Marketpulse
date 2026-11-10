@@ -27,7 +27,7 @@ export function SectorHeatmap({ sectors }: { sectors: SectorTile[] }) {
   const sorted = [...sectors].sort((a, b) => Number(b.change_pct ?? -Infinity) - Number(a.change_pct ?? -Infinity));
   return (
     <div>
-      <ul className="grid grid-cols-2 gap-0.5 sm:grid-cols-3 lg:grid-cols-4" aria-label="Sector performance today">
+      <ul className="grid grid-cols-2 gap-px sm:grid-cols-3 lg:grid-cols-4" aria-label="Sector performance today">
         {sorted.map((s) => {
           const pct = s.change_pct === null ? null : Number(s.change_pct);
           const style = heatColor(pct);
@@ -37,12 +37,12 @@ export function SectorHeatmap({ sectors }: { sectors: SectorTile[] }) {
               <Link
                 href={`/stock/${s.symbol}`}
                 style={style}
-                className="flex h-16 flex-col justify-between rounded-sm p-2 text-sm outline-offset-2 hover:ring-2 hover:ring-accent"
+                className="flex h-14 flex-col justify-between px-2 py-1.5 text-[13px] hover:outline hover:outline-2 hover:-outline-offset-2 hover:outline-accent"
                 title={`${s.sector} (${s.symbol}): ${formatPct(s.change_pct)} today`}
               >
                 <span className="truncate font-medium">{s.sector}</span>
                 <span className="tabular font-semibold">
-                  {arrow && <span aria-hidden>{arrow} </span>}
+                  {arrow && <span aria-hidden className="text-[0.7em]">{arrow} </span>}
                   {pct === null ? "—" : formatPct(pct)}
                 </span>
               </Link>
@@ -50,18 +50,18 @@ export function SectorHeatmap({ sectors }: { sectors: SectorTile[] }) {
           );
         })}
       </ul>
-      <p className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted">
+      <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-2xs text-muted">
         <span className="inline-flex items-center gap-1">
-          <span aria-hidden className="inline-block h-3 w-3 rounded-sm" style={{ background: "var(--div-up-3)" }} />
-          gain
+          <span aria-hidden className="inline-block h-2.5 w-2.5" style={{ background: "var(--div-up-3)" }} />
+          ▲ gain
         </span>
         <span className="inline-flex items-center gap-1">
-          <span aria-hidden className="inline-block h-3 w-3 rounded-sm" style={{ background: "var(--div-mid)" }} />
+          <span aria-hidden className="inline-block h-2.5 w-2.5" style={{ background: "var(--div-mid)" }} />
           ±0.25%
         </span>
         <span className="inline-flex items-center gap-1">
-          <span aria-hidden className="inline-block h-3 w-3 rounded-sm" style={{ background: "var(--div-down-3)" }} />
-          loss
+          <span aria-hidden className="inline-block h-2.5 w-2.5" style={{ background: "var(--div-down-3)" }} />
+          ▼ loss
         </span>
         <span>SPDR sector ETFs, daily change</span>
       </p>

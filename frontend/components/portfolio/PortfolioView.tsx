@@ -5,6 +5,7 @@ import { useState } from "react";
 
 import { LiveQuotesProvider, useSharedLiveQuotes } from "@/components/markets/LiveQuotesProvider";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { PriceTick } from "@/components/ui/PriceTick";
 import { Card, ChangeText, EmptyState, SkeletonBlock } from "@/components/ui/primitives";
 import { ErrorState, LocalTime, StaleBadge } from "@/components/ui/status";
 import { toApiError } from "@/lib/api";
@@ -45,26 +46,26 @@ export function PortfolioView() {
 
   return (
     <LiveQuotesProvider symbols={data.positions.map((p) => p.symbol)}>
-      <div className="space-y-6">
+      <div className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-sm text-secondary">
+          <p className="text-[13px] text-secondary">
             Virtual money only. Orders fill at the current market price; place them from any stock page.
           </p>
           <button
             type="button"
             onClick={() => setConfirmReset(true)}
-            className="rounded-md border border-border px-3 py-1.5 text-xs text-down hover:bg-surface-2"
+            className="btn btn-danger"
           >
             Reset portfolio
           </button>
         </div>
         {resetError && (
-          <p role="alert" className="rounded-md bg-surface-2 px-3 py-2 text-sm text-down">
+          <p role="alert" className="notice text-down">
             {resetError}
           </p>
         )}
         <Holdings portfolio={data} />
-        <Card title="Trade history">
+        <Card title="Trade history" flush>
           <TradeHistory state={trades.state} onRetry={trades.reload} />
         </Card>
       </div>
@@ -92,68 +93,70 @@ function Holdings({ portfolio }: { portfolio: Portfolio }) {
 
   return (
     <>
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-md border border-border bg-border lg:grid-cols-4">
         <Stat label="Total equity" value={formatMoney(totals.equity, ccy)} />
         <Stat label="Cash" value={formatMoney(portfolio.cash, ccy)} />
         <Stat
           label="Total return"
           value={formatMoney(totals.totalReturn, ccy)}
-          extra={<ChangeText changePct={totals.totalReturnPct?.toFixed(4) ?? null} className="text-xs" />}
+          extra={<ChangeText changePct={totals.totalReturnPct?.toFixed(4) ?? null} className="text-xs font-normal" />}
         />
         <Stat label="Realized P&L" value={formatMoney(portfolio.realized_pnl, ccy)} />
-      </div>
+      </dl>
       {portfolio.incomplete && (
         <p className="text-xs text-muted">
           Some positions couldn&apos;t be priced right now and are counted at cost.
         </p>
       )}
-      <Card title="Positions">
+      <Card title="Positions" flush>
         {positions.length === 0 ? (
-          <EmptyState title="No positions yet">
-            Open any US stock or ETF page, for example{" "}
-            <Link href="/stock/SPY" className="text-accent hover:underline">
-              SPY
-            </Link>
-            , and use the Trade panel.
-          </EmptyState>
+          <div className="p-3">
+            <EmptyState title="No positions yet">
+              Open any US stock or ETF page, for example{" "}
+              <Link href="/stock/SPY" className="text-accent hover:underline">
+                SPY
+              </Link>
+              , and use the Trade panel.
+            </EmptyState>
+          </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[40rem] text-sm">
+            <table className="data-table min-w-[40rem]">
               <caption className="sr-only">Open positions</caption>
               <thead>
-                <tr className="text-left text-xs text-muted">
-                  <th scope="col" className="pb-2 font-normal">Symbol</th>
-                  <th scope="col" className="pb-2 text-right font-normal">Quantity</th>
-                  <th scope="col" className="pb-2 text-right font-normal">Avg cost</th>
-                  <th scope="col" className="pb-2 text-right font-normal">Price</th>
-                  <th scope="col" className="pb-2 text-right font-normal">Market value</th>
-                  <th scope="col" className="pb-2 text-right font-normal">Unrealized P&amp;L</th>
+                <tr>
+                  <th scope="col">Symbol</th>
+                  <th scope="col" className="num">Quantity</th>
+                  <th scope="col" className="num">Avg cost</th>
+                  <th scope="col" className="num">Price</th>
+                  <th scope="col" className="num">Market value</th>
+                  <th scope="col" className="num">Unrealized P&amp;L</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border">
+              <tbody>
                 {positions.map(({ position: p, price, marketValue, unrealizedPnl, unrealizedPnlPct, live }) => (
                   <tr key={p.symbol}>
-                    <td className="py-2">
+                    <td>
                       <Link href={`/stock/${encodeURIComponent(p.symbol)}`} className="font-medium text-primary hover:text-accent">
                         {p.display_symbol}
-                      </Link>
-                      <span className="block max-w-48 truncate text-xs text-muted">{p.description}</span>
+                      </Link>{" "}
+                      <span className="inline-block max-w-48 truncate align-bottom text-2xs text-muted">{p.description}</span>
                     </td>
-                    <td className="tabular py-2 text-right">{formatNumber(p.quantity, 6)}</td>
-                    <td className="tabular py-2 text-right">{formatPrice(p.avg_cost, p.currency)}</td>
-                    <td className="tabular py-2 text-right">
-                      {price === null ? "—" : formatPrice(price, p.currency)}
-                      {live && <span className="ml-1 text-xs text-up" aria-label="live">●</span>}
+                    <td className="num">{formatNumber(p.quantity, 6)}</td>
+                    <td className="num">{formatPrice(p.avg_cost, p.currency)}</td>
+                    <td className="num">
+                      {live && <span className="mr-1 text-[0.6em] text-up" role="img" aria-label="live">●</span>}
+                      {price === null ? "—" : <PriceTick value={price}>{formatPrice(price, p.currency)}</PriceTick>}
                       {!live && p.price_stale && p.price_as_of && (
                         <span className="ml-1 align-middle">
                           <StaleBadge asOf={p.price_as_of} stale />
                         </span>
                       )}
                     </td>
-                    <td className="tabular py-2 text-right">
+                    <td className="num">
                       {marketValue === null ? "—" : formatMoney(marketValue, p.currency)}
                     </td>
-                    <td className="py-2 text-right">
+                    <td className="num">
                       {unrealizedPnl === null ? (
                         "—"
                       ) : (
@@ -173,10 +176,12 @@ function Holdings({ portfolio }: { portfolio: Portfolio }) {
 
 function Stat({ label, value, extra }: { label: string; value: string; extra?: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-border bg-surface p-4">
-      <p className="text-xs text-muted">{label}</p>
-      <p className="tabular mt-1 text-lg font-semibold text-primary">{value}</p>
-      {extra}
+    <div className="bg-surface px-3 py-2">
+      <dt className="section-label">{label}</dt>
+      <dd className="tabular mt-0.5 flex flex-wrap items-baseline gap-x-2 text-base font-semibold text-primary">
+        {value}
+        {extra}
+      </dd>
     </div>
   );
 }
@@ -188,36 +193,46 @@ function TradeHistory({
   state: ReturnType<typeof useAuthedQuery<Trade[]>>["state"];
   onRetry: () => void;
 }) {
-  if (state.kind === "loading") return <SkeletonBlock lines={4} label="Loading trades" />;
-  if (state.kind === "error") return <ErrorState message={state.error.message} retryable={state.error.retryable} onRetry={onRetry} />;
-  if (state.data.length === 0) return <EmptyState title="No trades yet" />;
+  if (state.kind !== "ready" || state.data.length === 0) {
+    return (
+      <div className="p-3">
+        {state.kind === "loading" ? (
+          <SkeletonBlock lines={4} label="Loading trades" />
+        ) : state.kind === "error" ? (
+          <ErrorState message={state.error.message} retryable={state.error.retryable} onRetry={onRetry} />
+        ) : (
+          <EmptyState title="No trades yet" />
+        )}
+      </div>
+    );
+  }
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[36rem] text-sm">
+      <table className="data-table min-w-[36rem]">
         <caption className="sr-only">Trade history, newest first</caption>
         <thead>
-          <tr className="text-left text-xs text-muted">
-            <th scope="col" className="pb-2 font-normal">Time</th>
-            <th scope="col" className="pb-2 font-normal">Side</th>
-            <th scope="col" className="pb-2 font-normal">Symbol</th>
-            <th scope="col" className="pb-2 text-right font-normal">Quantity</th>
-            <th scope="col" className="pb-2 text-right font-normal">Price</th>
-            <th scope="col" className="pb-2 text-right font-normal">Total</th>
-            <th scope="col" className="pb-2 text-right font-normal">Realized</th>
+          <tr>
+            <th scope="col">Time</th>
+            <th scope="col">Side</th>
+            <th scope="col">Symbol</th>
+            <th scope="col" className="num">Quantity</th>
+            <th scope="col" className="num">Price</th>
+            <th scope="col" className="num">Total</th>
+            <th scope="col" className="num">Realized</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-border">
+        <tbody>
           {state.data.map((t) => (
             <tr key={t.id}>
-              <td className="py-2 text-xs text-secondary">
+              <td className="text-xs whitespace-nowrap text-secondary">
                 <LocalTime iso={t.executed_at} withDate />
               </td>
-              <td className={`py-2 text-xs font-medium uppercase ${t.side === "buy" ? "text-up" : "text-down"}`}>{t.side}</td>
-              <td className="py-2">{t.display_symbol}</td>
-              <td className="tabular py-2 text-right">{formatNumber(t.quantity, 6)}</td>
-              <td className="tabular py-2 text-right">{formatPrice(t.price, t.currency)}</td>
-              <td className="tabular py-2 text-right">{formatMoney(t.notional, t.currency)}</td>
-              <td className="tabular py-2 text-right">{t.realized_pnl === null ? "—" : formatChange(t.realized_pnl)}</td>
+              <td className={`text-xs font-medium uppercase ${t.side === "buy" ? "text-up" : "text-down"}`}>{t.side}</td>
+              <td className="font-medium">{t.display_symbol}</td>
+              <td className="num">{formatNumber(t.quantity, 6)}</td>
+              <td className="num">{formatPrice(t.price, t.currency)}</td>
+              <td className="num">{formatMoney(t.notional, t.currency)}</td>
+              <td className="num">{t.realized_pnl === null ? "—" : formatChange(t.realized_pnl)}</td>
             </tr>
           ))}
         </tbody>

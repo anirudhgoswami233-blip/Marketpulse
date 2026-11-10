@@ -1,6 +1,7 @@
 "use client";
 
 import { StockActions } from "@/components/stock/StockActions";
+import { PriceTick } from "@/components/ui/PriceTick";
 import { ChangeText } from "@/components/ui/primitives";
 import { LocalTime, StaleBadge } from "@/components/ui/status";
 import { formatPrice } from "@/lib/format";
@@ -16,14 +17,16 @@ export function LiveQuote({ info, quote }: { info: SymbolInfo; quote: Envelope<Q
 
   return (
     <div>
-      <div className="flex flex-wrap items-baseline gap-3">
-        <span className="tabular text-3xl font-semibold text-primary">{formatPrice(display.price, currency)}</span>
-        <ChangeText change={display.change} changePct={display.changePct} className="text-base" />
+      <div className="flex flex-wrap items-baseline gap-x-3">
+        <PriceTick value={display.price} className="text-2xl font-semibold text-primary">
+          {formatPrice(display.price, currency)}
+        </PriceTick>
+        <ChangeText change={display.change} changePct={display.changePct} className="text-sm font-medium" />
       </div>
-      <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted">
+      <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-muted">
         {display.live && (
-          <span className="inline-flex items-center gap-1 text-up">
-            <span aria-hidden>●</span> Live
+          <span className="inline-flex items-center gap-1 font-medium text-up">
+            <span aria-hidden className="text-[0.6em]">●</span> Live
           </span>
         )}
         {info.quote_delay_min !== null ? (

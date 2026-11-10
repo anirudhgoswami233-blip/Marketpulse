@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { MoversTable } from "@/components/markets/MoversTable";
 import { heatColor, SectorHeatmap } from "@/components/markets/SectorHeatmap";
 import { NewsList } from "@/components/stock/StockDetails";
+import { PriceTick } from "@/components/ui/PriceTick";
 import { ChangeText } from "@/components/ui/primitives";
 import { ErrorState, StaleBadge } from "@/components/ui/status";
 
@@ -88,5 +89,25 @@ describe("empty states", () => {
   it("NewsList", () => {
     render(<NewsList items={[]} />);
     expect(screen.getByText("No news in the last 7 days")).toBeTruthy();
+  });
+});
+
+describe("PriceTick", () => {
+  it("flashes in the direction of a price change, and not on first render", () => {
+    const { rerender } = render(<PriceTick value="100.00">$100.00</PriceTick>);
+    const el = screen.getByText("$100.00");
+    expect(el.className).not.toMatch(/tick-(up|down)/);
+
+    rerender(<PriceTick value="100.50">$100.50</PriceTick>);
+    expect(el.classList.contains("tick-up")).toBe(true);
+
+    rerender(<PriceTick value="99.75">$99.75</PriceTick>);
+    expect(el.classList.contains("tick-down")).toBe(true);
+    expect(el.classList.contains("tick-up")).toBe(false);
+  });
+
+  it("keeps tabular numerals so the price doesn't jitter", () => {
+    render(<PriceTick value="1">$1.00</PriceTick>);
+    expect(screen.getByText("$1.00").classList.contains("tabular")).toBe(true);
   });
 });

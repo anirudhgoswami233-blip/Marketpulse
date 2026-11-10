@@ -43,9 +43,9 @@ export function CalendarView({ initialTab, initialWeek }: { initialTab: "earning
   const week = chosenWeek ?? (timeZone ? todayIn(timeZone) : null);
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div role="tablist" aria-label="Calendar" className="flex gap-1">
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div role="tablist" aria-label="Calendar" className="flex gap-0.5">
           {(["earnings", "ipos"] as const).map((t) => (
             <button
               key={t}
@@ -53,20 +53,20 @@ export function CalendarView({ initialTab, initialWeek }: { initialTab: "earning
               role="tab"
               aria-selected={tab === t}
               onClick={() => setTab(t)}
-              className={`rounded-md px-3 py-1.5 text-sm ${tab === t ? "bg-accent text-surface" : "text-secondary hover:bg-surface-2"}`}
+              className="tab"
             >
               {t === "earnings" ? "Earnings" : "IPOs"}
             </button>
           ))}
         </div>
-        <div className="flex items-center gap-2 text-sm">
-          <button type="button" disabled={!week} onClick={() => week && setChosenWeek(shiftDate(week, -7))} className="rounded-md border border-border px-2 py-1 text-secondary hover:text-primary disabled:opacity-50" aria-label="Previous week">
+        <div className="flex items-center gap-1">
+          <button type="button" disabled={!week} onClick={() => week && setChosenWeek(shiftDate(week, -7))} className="btn" aria-label="Previous week">
             ←
           </button>
-          <button type="button" disabled={!week} onClick={() => setChosenWeek(null)} className="rounded-md border border-border px-2 py-1 text-xs text-secondary hover:text-primary disabled:opacity-50">
+          <button type="button" disabled={!week} onClick={() => setChosenWeek(null)} className="btn">
             This week
           </button>
-          <button type="button" disabled={!week} onClick={() => week && setChosenWeek(shiftDate(week, 7))} className="rounded-md border border-border px-2 py-1 text-secondary hover:text-primary disabled:opacity-50" aria-label="Next week">
+          <button type="button" disabled={!week} onClick={() => week && setChosenWeek(shiftDate(week, 7))} className="btn" aria-label="Next week">
             →
           </button>
         </div>
@@ -116,7 +116,7 @@ function Earnings({ week }: { week: string }) {
         }}
         placeholder="Filter by symbol or company"
         aria-label="Filter earnings by symbol or company"
-        className="w-52 rounded-md border border-border bg-surface px-2 py-1 text-primary"
+        className="input w-52 py-0.5 text-xs"
       />
       {signedIn ? (
         <label className="flex items-center gap-1 text-secondary">
@@ -145,10 +145,11 @@ function Earnings({ week }: { week: string }) {
 
   return (
     <Card
+      flush
       title={<WeekHeading start={data.week_start} end={data.week_end} />}
       action={controls}
     >
-      <div className="mb-3 flex flex-wrap items-center gap-2 text-xs text-muted">
+      <div className="flex flex-wrap items-center gap-2 px-3 py-2 text-xs text-muted">
         <span>
           {data.total} {data.total === 1 ? "company reports" : "companies report"} this week
           {data.total > data.events.length && ` (showing the first ${data.events.length})`}
@@ -156,19 +157,21 @@ function Earnings({ week }: { week: string }) {
         <StaleBadge asOf={data.as_of} stale={data.stale} />
       </div>
       {events.length === 0 ? (
-        <EmptyState title={watchlistOnly ? "None of your watchlist companies report this week" : "No earnings found for this week"}>
-          {needle && "Try a different filter."}
-        </EmptyState>
+        <div className="px-3 pb-3">
+          <EmptyState title={watchlistOnly ? "None of your watchlist companies report this week" : "No earnings found for this week"}>
+            {needle && "Try a different filter."}
+          </EmptyState>
+        </div>
       ) : (
-        <div className="space-y-5">
+        <div>
           {days.map((day) => (
             <section key={day} aria-label={formatDate(day)}>
-              <h3 className="mb-1 text-sm font-medium text-primary">{formatDate(day)}</h3>
+              <h3 className="border-y border-border bg-surface-2 px-3 py-1 text-xs font-semibold text-primary">{formatDate(day)}</h3>
               <EarningsTable rows={events.slice(0, shown).filter((e) => e.date === day)} />
             </section>
           ))}
           {events.length > shown && (
-            <button type="button" onClick={() => setShown(shown + PAGE)} className="w-full rounded-md border border-border py-1.5 text-xs text-secondary hover:text-primary">
+            <button type="button" onClick={() => setShown(shown + PAGE)} className="btn m-3 w-[calc(100%-1.5rem)]">
               Show more ({events.length - shown} remaining)
             </button>
           )}
@@ -181,21 +184,21 @@ function Earnings({ week }: { week: string }) {
 function EarningsTable({ rows }: { rows: EarningsRow[] }) {
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[40rem] text-sm">
+      <table className="data-table min-w-[40rem]">
         <thead>
-          <tr className="text-left text-xs text-muted">
-            <th scope="col" className="py-1 font-normal">Company</th>
-            <th scope="col" className="py-1 font-normal">When</th>
-            <th scope="col" className="py-1 text-right font-normal">EPS est.</th>
-            <th scope="col" className="py-1 text-right font-normal">EPS actual</th>
-            <th scope="col" className="py-1 text-right font-normal">Surprise</th>
-            <th scope="col" className="py-1 text-right font-normal">Revenue est.</th>
+          <tr>
+            <th scope="col">Company</th>
+            <th scope="col">When</th>
+            <th scope="col" className="num">EPS est.</th>
+            <th scope="col" className="num">EPS actual</th>
+            <th scope="col" className="num">Surprise</th>
+            <th scope="col" className="num">Revenue est.</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-border">
+        <tbody>
           {rows.map((e) => (
             <tr key={`${e.symbol}-${e.date}`}>
-              <td className="py-1.5">
+              <td className="max-w-64 truncate">
                 <Link href={`/stock/${encodeURIComponent(e.symbol)}`} className="font-medium text-primary hover:text-accent">
                   {e.symbol}
                 </Link>
@@ -204,13 +207,13 @@ function EarningsTable({ rows }: { rows: EarningsRow[] }) {
                     ★<span className="sr-only"> on your watchlist</span>
                   </span>
                 )}
-                {e.name && <span className="block max-w-56 truncate text-xs text-muted">{e.name}</span>}
+                {e.name && <span className="ml-1.5 text-xs text-muted">{e.name}</span>}
               </td>
-              <td className="py-1.5 text-xs text-secondary">{SESSION_LABEL[e.session]}</td>
-              <td className="tabular py-1.5 text-right">{e.eps_estimate === null ? "—" : formatPrice(e.eps_estimate, "USD")}</td>
-              <td className="tabular py-1.5 text-right">{e.eps_actual === null ? "—" : formatPrice(e.eps_actual, "USD")}</td>
-              <td className="tabular py-1.5 text-right">{e.eps_surprise_pct === null ? "—" : formatPct(e.eps_surprise_pct)}</td>
-              <td className="tabular py-1.5 text-right">{formatCompact(e.revenue_estimate, "USD")}</td>
+              <td className="text-xs whitespace-nowrap text-secondary">{SESSION_LABEL[e.session]}</td>
+              <td className="num">{e.eps_estimate === null ? "—" : formatPrice(e.eps_estimate, "USD")}</td>
+              <td className="num">{e.eps_actual === null ? "—" : formatPrice(e.eps_actual, "USD")}</td>
+              <td className="num">{e.eps_surprise_pct === null ? "—" : formatPct(e.eps_surprise_pct)}</td>
+              <td className="num">{formatCompact(e.revenue_estimate, "USD")}</td>
             </tr>
           ))}
         </tbody>
@@ -225,36 +228,38 @@ function Ipos({ week }: { week: string }) {
   if (state.kind === "error") return <ErrorState message={state.error.message} retryable={state.error.retryable} onRetry={reload} />;
   const data = state.data;
   return (
-    <Card title={<WeekHeading start={data.week_start} end={data.week_end} />} action={<StaleBadge asOf={data.as_of} stale={data.stale} />}>
+    <Card flush title={<WeekHeading start={data.week_start} end={data.week_end} />} action={<StaleBadge asOf={data.as_of} stale={data.stale} />}>
       {data.events.length === 0 ? (
-        <EmptyState title="No IPOs scheduled this week" />
+        <div className="p-3">
+          <EmptyState title="No IPOs scheduled this week" />
+        </div>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[40rem] text-sm">
+          <table className="data-table min-w-[40rem]">
             <thead>
-              <tr className="text-left text-xs text-muted">
-                <th scope="col" className="py-1 font-normal">Date</th>
-                <th scope="col" className="py-1 font-normal">Company</th>
-                <th scope="col" className="py-1 font-normal">Exchange</th>
-                <th scope="col" className="py-1 text-right font-normal">Price range</th>
-                <th scope="col" className="py-1 text-right font-normal">Shares</th>
-                <th scope="col" className="py-1 text-right font-normal">Deal size</th>
-                <th scope="col" className="py-1 font-normal">Status</th>
+              <tr>
+                <th scope="col">Date</th>
+                <th scope="col">Company</th>
+                <th scope="col">Exchange</th>
+                <th scope="col" className="num">Price range</th>
+                <th scope="col" className="num">Shares</th>
+                <th scope="col" className="num">Deal size</th>
+                <th scope="col">Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
+            <tbody>
               {data.events.map((e) => (
                 <tr key={`${e.name}-${e.date}`}>
-                  <td className="py-1.5 text-xs text-secondary">{formatDate(e.date)}</td>
-                  <td className="py-1.5">
+                  <td className="text-xs whitespace-nowrap text-secondary">{formatDate(e.date)}</td>
+                  <td>
                     <span className="font-medium text-primary">{e.name}</span>
                     {e.symbol && <span className="ml-1 text-xs text-muted">{e.symbol}</span>}
                   </td>
-                  <td className="py-1.5 text-xs text-secondary">{e.exchange ?? "—"}</td>
-                  <td className="tabular py-1.5 text-right">{e.price_range ? `$${e.price_range}` : "—"}</td>
-                  <td className="tabular py-1.5 text-right">{e.shares === null ? "—" : formatNumber(e.shares, 0)}</td>
-                  <td className="tabular py-1.5 text-right">{formatCompact(e.total_value, "USD")}</td>
-                  <td className="py-1.5 text-xs capitalize text-secondary">{e.status ?? "—"}</td>
+                  <td className="text-xs text-secondary">{e.exchange ?? "—"}</td>
+                  <td className="num">{e.price_range ? `$${e.price_range}` : "—"}</td>
+                  <td className="num">{e.shares === null ? "—" : formatNumber(e.shares, 0)}</td>
+                  <td className="num">{formatCompact(e.total_value, "USD")}</td>
+                  <td className="text-xs capitalize text-secondary">{e.status ?? "—"}</td>
                 </tr>
               ))}
             </tbody>

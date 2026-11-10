@@ -14,13 +14,13 @@ const LABELS: SignalLabel[] = ["Bullish signals", "Bearish signals", "Neutral"];
 /** A one-line pointer to the user's Daily Brief on the markets overview. */
 export function BriefTeaser() {
   const { status } = useAuth();
-  if (status === "loading") return <Skeleton className="h-12 w-full" />;
+  if (status === "loading") return <Skeleton className="h-9 w-full" />;
   if (status === "anonymous") {
     return (
-      <p className="rounded-lg border border-dashed border-border px-4 py-3 text-sm text-secondary">
-        Get a personalised Daily Market Brief built from technical signals on your watchlist.{" "}
+      <p className="min-h-9 rounded-sm border border-border bg-surface px-3 py-2 text-[13px] text-secondary">
+        The Daily Market Brief lists technical signals for the symbols on your watchlist each weekday.{" "}
         <Link href="/register?next=/brief" className="text-accent hover:underline">
-          Create a free account
+          Create an account
         </Link>
       </p>
     );
@@ -30,10 +30,10 @@ export function BriefTeaser() {
 
 function SignedInTeaser() {
   const { state } = useAuthedQuery<BriefStatus>("/api/v1/brief");
-  if (state.kind === "loading") return <Skeleton className="h-12 w-full" />;
+  if (state.kind === "loading") return <Skeleton className="h-9 w-full" />;
   if (state.kind === "error") {
     return (
-      <p role="status" className="rounded-lg border border-border px-4 py-3 text-sm text-secondary">
+      <p role="status" className="min-h-9 rounded-sm border border-border bg-surface px-3 py-2 text-[13px] text-secondary">
         Your Daily Brief couldn&apos;t be loaded right now.{" "}
         <Link href="/brief" className="text-accent hover:underline">
           Open the brief
@@ -45,7 +45,7 @@ function SignedInTeaser() {
   return (
     <Link
       href="/brief"
-      className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-border bg-surface px-4 py-3 text-sm hover:bg-surface-2"
+      className="flex min-h-9 flex-wrap items-center gap-x-3 gap-y-1 rounded-sm border border-border bg-surface px-3 py-1.5 text-[13px] hover:bg-surface-2"
     >
       <span className="font-medium text-primary">Your Daily Brief</span>
       {brief ? (
@@ -63,7 +63,7 @@ function SignedInTeaser() {
       ) : (
         <span className="text-xs text-secondary">Not generated yet. Open to create one.</span>
       )}
-      <span className="ml-auto text-xs text-accent">Read →</span>
+      <span className="ml-auto text-xs font-medium text-accent">Open brief →</span>
     </Link>
   );
 }

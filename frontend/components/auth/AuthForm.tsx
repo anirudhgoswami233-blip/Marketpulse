@@ -7,8 +7,7 @@ import { useState, type FormEvent } from "react";
 import { toApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 
-const inputClass =
-  "w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-primary focus:border-accent focus:outline-none";
+const inputClass = "input";
 
 /** Only follow same-site relative paths after sign-in (never an absolute URL from the query string). */
 export function safeNext(raw: string | null): string {
@@ -49,18 +48,18 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
 
   const isLogin = mode === "login";
   return (
-    <form onSubmit={onSubmit} className="space-y-4" noValidate>
+    <form onSubmit={onSubmit} className="space-y-3" noValidate>
       {!isLogin && (
-        <label className="block space-y-1 text-sm">
+        <label className="block space-y-1 text-[13px]">
           <span className="text-secondary">Display name (optional)</span>
           <input name="displayName" autoComplete="nickname" maxLength={80} className={inputClass} />
         </label>
       )}
-      <label className="block space-y-1 text-sm">
+      <label className="block space-y-1 text-[13px]">
         <span className="text-secondary">Email</span>
         <input name="email" type="email" required autoComplete="email" className={inputClass} />
       </label>
-      <label className="block space-y-1 text-sm">
+      <label className="block space-y-1 text-[13px]">
         <span className="text-secondary">Password</span>
         <input
           name="password"
@@ -78,18 +77,18 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
         )}
       </label>
       {error && (
-        <p role="alert" className="rounded-md bg-surface-2 px-3 py-2 text-sm text-down">
+        <p role="alert" className="notice text-down">
           {error}
         </p>
       )}
       <button
         type="submit"
         disabled={submitting}
-        className="w-full rounded-lg bg-accent px-3 py-2 text-sm font-medium text-surface hover:opacity-90 disabled:opacity-60"
+        className="btn btn-md btn-primary w-full"
       >
         {submitting ? (isLogin ? "Signing in…" : "Creating account…") : isLogin ? "Sign in" : "Create account"}
       </button>
-      <p className="text-center text-sm text-secondary">
+      <p className="text-center text-[13px] text-secondary">
         {isLogin ? "New to MarketPulse? " : "Already have an account? "}
         <Link
           href={`${isLogin ? "/register" : "/login"}${searchParams.get("next") ? `?next=${encodeURIComponent(safeNext(searchParams.get("next")))}` : ""}`}

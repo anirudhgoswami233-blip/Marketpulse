@@ -36,7 +36,7 @@ function NavLink({ href, label, pathname }: { href: string; label: string; pathn
     <Link
       href={href}
       aria-current={active ? "page" : undefined}
-      className={`rounded-md px-2 py-1 ${active ? "bg-surface-2 font-medium text-primary" : "text-secondary hover:text-primary"}`}
+      className={`rounded-sm px-2 py-1 text-[13px] ${active ? "bg-surface-2 font-medium text-primary" : "text-secondary hover:bg-surface-2 hover:text-primary"}`}
     >
       {label}
     </Link>
@@ -60,7 +60,7 @@ export function MainNav() {
 
   return (
     <>
-      <nav aria-label="Main" className="hidden items-center gap-1 text-sm lg:flex">
+      <nav aria-label="Main" className="hidden items-center gap-0.5 lg:flex">
         {NAV_GROUPS.map((group, i) => (
           <div key={group.label} className="flex items-center gap-1">
             {i > 0 && <span aria-hidden className="mx-1 h-4 w-px bg-border" />}
@@ -76,20 +76,20 @@ export function MainNav() {
           aria-expanded={open}
           aria-controls={menuId}
           onClick={() => setOpenFor(open ? null : (pathname ?? "/"))}
-          className="rounded-md border border-border px-2.5 py-1.5 text-sm text-secondary hover:text-primary"
+          className="btn btn-md"
         >
-          <span aria-hidden>{open ? "✕" : "☰"}</span> Menu
+          Menu
         </button>
         {open && (
           <nav
             id={menuId}
             aria-label="Main"
-            className="absolute inset-x-0 top-full z-40 border-b border-border bg-bg px-4 py-3 shadow-lg"
+            className="absolute inset-x-0 top-full z-40 border-b border-border bg-surface px-4 py-3"
           >
-            <div className="mx-auto grid max-w-7xl grid-cols-2 gap-4 text-sm">
+            <div className="mx-auto grid max-w-7xl grid-cols-2 gap-4">
               {NAV_GROUPS.map((group) => (
                 <div key={group.label}>
-                  <p className="mb-1 text-xs font-semibold tracking-wide text-muted uppercase">{group.label}</p>
+                  <p className="section-label mb-1 px-2">{group.label}</p>
                   <div className="flex flex-col gap-0.5">
                     {group.links.map((link) => (
                       <NavLink key={link.href} {...link} pathname={pathname} />

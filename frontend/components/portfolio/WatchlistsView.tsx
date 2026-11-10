@@ -7,6 +7,7 @@ import { useBulkQuotes } from "@/components/portfolio/useBulkQuotes";
 import { LiveQuotesProvider, useSharedLiveQuotes } from "@/components/markets/LiveQuotesProvider";
 import { SearchBox } from "@/components/search/SearchBox";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { PriceTick } from "@/components/ui/PriceTick";
 import { Card, ChangeText, EmptyState, Skeleton, SkeletonBlock } from "@/components/ui/primitives";
 import { ErrorState, StaleBadge } from "@/components/ui/status";
 import { toApiError } from "@/lib/api";
@@ -94,27 +95,27 @@ export function WatchlistsView() {
     });
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-2" role="tablist" aria-label="Your watchlists">
-        {lists.map((w) => (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-1">
+        <div className="flex flex-wrap items-center gap-1" role="tablist" aria-label="Your watchlists">
+          {lists.map((w) => (
           <button
             key={w.id}
             type="button"
             role="tab"
             aria-selected={w.id === selected?.id}
             onClick={() => setSelectedId(w.id)}
-            className={`rounded-full px-3 py-1 text-sm ${
-              w.id === selected?.id ? "bg-accent text-surface" : "border border-border text-secondary hover:text-primary"
-            }`}
+            className={`tab ${w.id === selected?.id ? "" : "border-border"}`}
           >
-            {w.name} <span className="opacity-70">({w.symbols.length})</span>
+            {w.name} <span className="tabular">({w.symbols.length})</span>
           </button>
-        ))}
+          ))}
+        </div>
         <NameForm label="New list" placeholder="List name" submitLabel="Create" disabled={busy} onSubmit={createList} />
       </div>
 
       {actionError && (
-        <p role="alert" className="rounded-md bg-surface-2 px-3 py-2 text-sm text-down">
+        <p role="alert" className="notice text-down">
           {actionError}
         </p>
       )}
@@ -123,6 +124,7 @@ export function WatchlistsView() {
         <EmptyState title="You don't have any watchlists yet">Create one above to start tracking symbols.</EmptyState>
       ) : (
         <Card
+          flush
           title={selected.name}
           action={
             <div className="flex flex-wrap items-center gap-2">
@@ -138,14 +140,14 @@ export function WatchlistsView() {
               <button
                 type="button"
                 onClick={() => setConfirmDelete(true)}
-                className="rounded-md border border-border px-2.5 py-1 text-xs text-down hover:bg-surface-2"
+                className="btn btn-danger"
               >
                 Delete list
               </button>
             </div>
           }
         >
-          <div className="mb-4 max-w-md">
+          <div className="max-w-md p-3">
             <SearchBox onSelect={addSymbol} placeholder="Add a symbol…" label={`Add a symbol to ${selected.name}`} />
           </div>
           <WatchlistTable watchlist={selected} onRemove={removeSymbol} busy={busy} />
@@ -177,29 +179,37 @@ function WatchlistTable({
   const symbols = watchlist.symbols.map((s) => s.symbol);
   const quotes = useBulkQuotes(symbols);
   if (watchlist.symbols.length === 0) {
-    return <EmptyState title="This watchlist is empty">Search above to add stocks, ETFs or forex pairs.</EmptyState>;
+    return (
+      <div className="px-3 pb-3">
+        <EmptyState title="This watchlist is empty">Search above to add stocks, ETFs or forex pairs.</EmptyState>
+      </div>
+    );
   }
   if (quotes.state.kind === "error") {
-    return <ErrorState message={quotes.state.error.message} retryable={quotes.state.error.retryable} onRetry={quotes.reload} />;
+    return (
+      <div className="px-3 pb-3">
+        <ErrorState message={quotes.state.error.message} retryable={quotes.state.error.retryable} onRetry={quotes.reload} />
+      </div>
+    );
   }
   const bySymbol = quotes.state.kind === "ready" ? quotes.state.bySymbol : null;
   const streamable = watchlist.symbols.filter((s) => s.streamable).map((s) => s.symbol);
 
   return (
     <LiveQuotesProvider symbols={streamable}>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[32rem] text-sm">
+      <div className="overflow-x-auto border-t border-border">
+        <table className="data-table sm:min-w-[32rem]">
           <caption className="sr-only">Symbols in {watchlist.name}</caption>
           <thead>
-            <tr className="text-left text-xs text-muted">
-              <th scope="col" className="pb-2 font-normal">Symbol</th>
-              <th scope="col" className="pb-2 font-normal">Name</th>
-              <th scope="col" className="pb-2 text-right font-normal">Price</th>
-              <th scope="col" className="pb-2 text-right font-normal">Change</th>
-              <th scope="col" className="pb-2 text-right font-normal"><span className="sr-only">Actions</span></th>
+            <tr>
+              <th scope="col">Symbol</th>
+              <th scope="col" className="max-sm:hidden">Name</th>
+              <th scope="col" className="num">Price</th>
+              <th scope="col" className="num">Change</th>
+              <th scope="col" className="num"><span className="sr-only">Actions</span></th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-border">
+          <tbody>
             {watchlist.symbols.map((symbol) => (
               <WatchlistRow
                 key={symbol.symbol}
@@ -235,25 +245,25 @@ function WatchlistRow({
 
   return (
     <tr>
-      <td className="py-2">
+      <td>
         <Link href={`/stock/${encodeURIComponent(symbol.symbol)}`} className="font-medium text-primary hover:text-accent">
           {symbol.display_symbol}
         </Link>
       </td>
-      <td className="max-w-56 truncate py-2 text-secondary" title={symbol.description}>
+      <td className="max-w-56 truncate text-secondary max-sm:hidden" title={symbol.description}>
         {symbol.description}
       </td>
       {result === undefined ? (
         <>
-          <td className="py-2 text-right"><Skeleton className="ml-auto h-4 w-16" /></td>
-          <td className="py-2 text-right"><Skeleton className="ml-auto h-4 w-14" /></td>
+          <td className="num"><Skeleton className="ml-auto h-3.5 w-16" /></td>
+          <td className="num"><Skeleton className="ml-auto h-3.5 w-14" /></td>
         </>
       ) : display ? (
         <>
-          <td className="tabular py-2 text-right text-primary">
-            {formatPrice(display.price, currency)}
+          <td className="num text-primary">
+            <PriceTick value={display.price}>{formatPrice(display.price, currency)}</PriceTick>
             {symbol.quote_delay_min !== null && (
-              <span className="ml-1 text-xs text-muted" title={`Delayed up to ${symbol.quote_delay_min} minutes`}>
+              <span className="ml-1 text-2xs text-muted" title={`Delayed up to ${symbol.quote_delay_min} minutes`}>
                 delayed
               </span>
             )}
@@ -263,29 +273,23 @@ function WatchlistRow({
               </span>
             )}
           </td>
-          <td className="py-2 text-right">
+          <td className="num">
             <ChangeText changePct={display.changePct} />
           </td>
         </>
       ) : (
-        <td colSpan={2} className="py-2 text-right text-xs text-muted" title={symbol.price_note ?? undefined}>
+        <td colSpan={2} className="num text-xs text-muted" title={symbol.price_note ?? undefined}>
           {QUOTE_ERROR_TEXT[result?.error ?? "provider_error"]}
-          {symbol.price_note && (
-            <>
-              {" "}
-              <span aria-hidden>ⓘ</span>
-              <span className="sr-only">: {symbol.price_note}</span>
-            </>
-          )}
+          {symbol.price_note && <span className="sr-only">: {symbol.price_note}</span>}
         </td>
       )}
-      <td className="py-2 text-right">
+      <td className="num">
         <button
           type="button"
           disabled={busy}
           onClick={() => onRemove(symbol.symbol)}
           aria-label={`Remove ${symbol.display_symbol}`}
-          className="rounded px-2 py-0.5 text-xs text-muted hover:bg-surface-2 hover:text-down disabled:opacity-50"
+          className="rounded-sm px-1.5 text-xs text-secondary hover:text-down disabled:opacity-50"
         >
           Remove
         </button>
@@ -316,7 +320,7 @@ function NameForm({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="rounded-md border border-dashed border-border px-2.5 py-1 text-xs text-secondary hover:text-primary"
+        className="btn"
       >
         {label}
       </button>
@@ -338,12 +342,12 @@ function NameForm({
         placeholder={placeholder}
         onChange={(event) => setName(event.target.value)}
         onKeyDown={(event) => event.key === "Escape" && setOpen(false)}
-        className="w-36 rounded-md border border-border bg-surface px-2 py-1 text-xs text-primary focus:border-accent focus:outline-none"
+        className="input w-36 py-0.5 text-xs"
       />
-      <button type="submit" disabled={disabled} className="rounded-md bg-accent px-2 py-1 text-xs font-medium text-surface disabled:opacity-60">
+      <button type="submit" disabled={disabled} className="btn btn-primary">
         {submitLabel}
       </button>
-      <button type="button" onClick={() => setOpen(false)} className="px-1 text-xs text-muted hover:text-primary">
+      <button type="button" onClick={() => setOpen(false)} className="px-1 text-xs text-secondary hover:text-primary">
         Cancel
       </button>
     </form>

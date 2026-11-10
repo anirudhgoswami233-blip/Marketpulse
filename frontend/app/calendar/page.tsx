@@ -1,17 +1,14 @@
 import { Suspense } from "react";
 
 import { CalendarView } from "@/components/calendar/CalendarView";
-import { SkeletonBlock } from "@/components/ui/primitives";
+import { PageHeader, SkeletonBlock } from "@/components/ui/primitives";
 
 export const metadata = { title: "Earnings & IPO calendar" };
 
 export default function CalendarPage({ searchParams }: PageProps<"/calendar">) {
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-semibold text-primary">Earnings &amp; IPO calendar</h1>
-        <p className="mt-1 text-sm text-secondary">Upcoming US earnings reports and IPOs, one week at a time.</p>
-      </div>
+    <div className="space-y-3">
+      <PageHeader title="Earnings &amp; IPO calendar">Upcoming US earnings reports and IPOs, one week at a time.</PageHeader>
       <Suspense fallback={<SkeletonBlock lines={8} label="Loading calendar" />}>
         <WithParams searchParams={searchParams} />
       </Suspense>

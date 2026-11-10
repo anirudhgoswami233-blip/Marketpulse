@@ -116,21 +116,21 @@ export function SearchBox({
         }}
         onFocus={() => setOpen(true)}
         onKeyDown={onKeyDown}
-        className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-primary placeholder:text-muted focus:border-accent focus:outline-none"
+        className="input h-7 py-0 text-[13px]"
       />
       {open && query.trim() && (
         <div
           id={listId}
           role="listbox"
-          className="absolute z-20 mt-1 w-full overflow-hidden rounded-lg border border-border bg-surface shadow-lg"
+          className="absolute z-20 mt-1 w-full overflow-hidden rounded-sm border border-border-strong bg-surface"
         >
           {state.kind === "loading" && (
-            <div role="status" className="px-3 py-3 text-sm text-secondary">
+            <div role="status" className="px-2.5 py-2 text-[13px] text-secondary">
               Searching…
             </div>
           )}
           {state.kind === "error" && (
-            <div role="alert" className="flex items-center justify-between gap-2 px-3 py-3 text-sm">
+            <div role="alert" className="flex items-center justify-between gap-2 px-2.5 py-2 text-[13px]">
               <span className="text-primary">{state.message}</span>
               <button
                 type="button"
@@ -142,19 +142,19 @@ export function SearchBox({
             </div>
           )}
           {state.kind === "results" && results.length === 0 && (
-            <div className="px-3 py-3 text-sm text-secondary">No matches for “{query.trim()}”.</div>
+            <div className="px-2.5 py-2 text-[13px] text-secondary">No matches for “{query.trim()}”.</div>
           )}
           {results.map((item, index) => {
-            const className = `flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm ${
+            const className = `flex w-full items-center justify-between gap-3 px-2.5 py-1.5 text-left text-[13px] ${
               index === active ? "bg-surface-2" : "hover:bg-surface-2"
             }`;
             const content = (
               <>
-                <span className="min-w-0">
+                <span className="min-w-0 truncate">
                   <span className="font-semibold text-primary">{item.display_symbol}</span>{" "}
-                  <span className="truncate text-secondary">{item.description}</span>
+                  <span className="text-secondary">{item.description}</span>
                 </span>
-                <span className="shrink-0 text-xs text-muted">
+                <span className="shrink-0 text-2xs text-muted">
                   {item.exchange} · {item.type || "—"}
                 </span>
               </>
