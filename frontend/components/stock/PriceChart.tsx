@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { ChangeText, EmptyState, Skeleton } from "@/components/ui/primitives";
 import { ErrorState, StaleBadge } from "@/components/ui/status";
@@ -25,15 +25,33 @@ function ChartSkeleton() {
 // The charting library is ~50 kB gzipped: fetch it in parallel with the price history, off the page bundle.
 const ChartCanvas = dynamic(() => import("@/components/stock/ChartCanvas"), { ssr: false, loading: ChartSkeleton });
 
-export function PriceChart({ symbol, currency }: { symbol: string; currency: string | null }) {
+export function PriceChart({
+  symbol,
+  currency,
+  initialChart,
+}: {
+  symbol: string;
+  currency: string | null;
+  /** Server-cached history for the default "1M" range, so the first paint doesn't wait on the backend. */
+  initialChart?: Envelope<Chart>;
+}) {
   const [range, setRange] = useState<ChartRange>("1M");
   const [retryToken, setRetryToken] = useState(0);
   // Results are tagged with the request they answer; anything else means that request is still loading.
   const requestKey = `${symbol}|${range}|${retryToken}`;
-  const [result, setResult] = useState<{ key: string; value: Result } | null>(null);
+  const seededKey = `${symbol}|1M|0`;
+  const [result, setResult] = useState<{ key: string; value: Result } | null>(
+    initialChart ? { key: seededKey, value: { kind: "ready", chart: initialChart } } : null,
+  );
+  // The seeded range is already drawn from server cache; skip its fetch, but refetch on a range switch or retry.
+  const skipFetchFor = useRef<string | null>(initialChart ? seededKey : null);
   const state: State = result?.key === requestKey ? result.value : { kind: "loading" };
 
   useEffect(() => {
+    if (skipFetchFor.current === requestKey) {
+      skipFetchFor.current = null;
+      return;
+    }
     const controller = new AbortController();
     api
       .chart(symbol, range, { signal: controller.signal })

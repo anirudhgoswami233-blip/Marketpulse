@@ -1,3 +1,4 @@
+import { connection } from "next/server";
 import { Suspense } from "react";
 
 import { IndexGrid } from "@/components/markets/IndexGrid";
@@ -9,7 +10,8 @@ import { BriefTeaser } from "@/components/signals/BriefTeaser";
 import { AutoRefresh } from "@/components/ui/AutoRefresh";
 import { Card, PageHeader, Skeleton, SkeletonBlock } from "@/components/ui/primitives";
 import { ErrorState, LocalTime, StaleBadge } from "@/components/ui/status";
-import { api, toApiError } from "@/lib/api";
+import { toApiError } from "@/lib/api";
+import { cachedOverview } from "@/lib/cached";
 import type { MarketOverview } from "@/types/api";
 
 export default function MarketsPage() {
@@ -27,9 +29,11 @@ export default function MarketsPage() {
 }
 
 async function Overview() {
+  // Stay dynamic so the cache fills at request time, not during `next build` (the backend may be asleep then).
+  await connection();
   let overview: MarketOverview;
   try {
-    overview = await api.overview();
+    overview = await cachedOverview();
   } catch (error) {
     const apiError = toApiError(error);
     return <ErrorState message={apiError.message} retryable={apiError.retryable} />;

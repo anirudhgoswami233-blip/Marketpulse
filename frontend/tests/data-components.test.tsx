@@ -146,4 +146,17 @@ describe("PriceChart", () => {
     });
     expect(String(fetchMock.mock.calls.at(-1)?.[0])).toContain("range=1Y");
   });
+
+  it("draws a seeded chart without fetching, then refetches on a range change", async () => {
+    render(<PriceChart symbol="AAPL" currency="USD" initialChart={chartEnvelope()} />);
+    expect(await screen.findByTestId("price-chart")).toBeTruthy();
+    expect(setData).toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled(); // seeded 1M range skips the initial fetch
+
+    fetchMock.mockResolvedValue(jsonResponse(chartEnvelope()));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("tab", { name: "1Y" }));
+    });
+    expect(String(fetchMock.mock.calls.at(-1)?.[0])).toContain("range=1Y");
+  });
 });

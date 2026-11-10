@@ -1,10 +1,12 @@
 import Link from "next/link";
+import { connection } from "next/server";
 import { Suspense } from "react";
 
 import { Disclaimer, SignalBadge, SignalCard } from "@/components/signals/SignalCard";
 import { Card, EmptyState, PageHeader, SkeletonBlock } from "@/components/ui/primitives";
 import { ErrorState } from "@/components/ui/status";
-import { api, toApiError } from "@/lib/api";
+import { toApiError } from "@/lib/api";
+import { cachedSignalHistory, cachedSignalPerformance } from "@/lib/cached";
 import { formatPct } from "@/lib/format";
 import type { LabelStats, Signal, SignalLabel, SignalPerformance } from "@/types/api";
 
@@ -44,9 +46,11 @@ export default function SignalsPage({ searchParams }: PageProps<"/signals">) {
 }
 
 async function Performance() {
+  // No params/searchParams here, so keep it dynamic to fill the cache at request time, not at build.
+  await connection();
   let data: SignalPerformance;
   try {
-    data = await api.signalPerformance();
+    data = await cachedSignalPerformance();
   } catch (error) {
     const e = toApiError(error);
     return (
@@ -124,9 +128,11 @@ function StatCell({ stats }: { stats: LabelStats | undefined }) {
 async function RecentSignals({ searchParams }: { searchParams: PageProps<"/signals">["searchParams"] }) {
   const raw = (await searchParams).label;
   const label = LABELS.find((l) => l === (Array.isArray(raw) ? raw[0] : raw));
+  // `searchParams` is read above (request-time), so this is already dynamic; the label is passed as the
+  // cache key, not read inside the cached scope.
   let signals: Signal[];
   try {
-    signals = await api.signalHistory({ label, limit: 50 });
+    signals = await cachedSignalHistory(label);
   } catch (error) {
     const e = toApiError(error);
     return <ErrorState message={e.message} retryable={e.retryable} />;

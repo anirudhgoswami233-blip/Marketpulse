@@ -144,6 +144,16 @@ describe("ForexView", () => {
     renderWithAuth(<ForexView />);
     expect((await screen.findByRole("alert")).textContent).toContain("Server trouble");
   });
+
+  it("renders a seeded board immediately and skips the initial fetch", async () => {
+    const { calls } = mockApi({ ...anonymous });
+    renderWithAuth(<ForexView initialBoard={BOARD} />);
+    // Rates are on screen without awaiting a network round-trip.
+    expect(screen.getByText("Indian rupee")).toBeTruthy();
+    expect(screen.getByText("88.0000")).toBeTruthy();
+    await waitFor(() => expect(screen.getByText(/Updated/)).toBeTruthy());
+    expect(calls.some((c) => c.method === "GET" && c.path === "/api/v1/forex")).toBe(false);
+  });
 });
 
 const WEEK: EarningsWeek = {

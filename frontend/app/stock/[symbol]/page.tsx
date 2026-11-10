@@ -10,7 +10,8 @@ import { LiveQuote } from "@/components/stock/StockHeader";
 import { Card, EmptyState, Skeleton, SkeletonBlock } from "@/components/ui/primitives";
 import { ErrorState, StaleBadge } from "@/components/ui/status";
 import { ApiError, api, toApiError } from "@/lib/api";
-import type { Envelope, SymbolInfo } from "@/types/api";
+import { cachedChart, cachedMetrics, cachedNews, cachedProfile, cachedSignal, cachedStockInfo } from "@/lib/cached";
+import type { Chart, Envelope, SymbolInfo } from "@/types/api";
 
 export async function generateMetadata({ params }: PageProps<"/stock/[symbol]">): Promise<Metadata> {
   const { symbol } = await params;
@@ -36,7 +37,9 @@ async function settle<T>(promise: Promise<T>): Promise<{ data: T; error: null } 
 
 async function StockContent({ params }: { params: PageProps<"/stock/[symbol]">["params"] }) {
   const symbol = decodeURIComponent((await params).symbol).toUpperCase();
-  const info = await settle(api.stock(symbol));
+  // Downstream of `await params` (an unlisted dynamic route), so this subtree is request-time, not built —
+  // the cached reads below fill at runtime and never force a backend call during `next build`.
+  const info = await settle(cachedStockInfo(symbol));
   if (info.error) {
     if (info.error.code === "not_found") {
       return (
@@ -73,7 +76,9 @@ async function StockContent({ params }: { params: PageProps<"/stock/[symbol]">["
         <div className="min-w-0 space-y-3">
           <Card title="Price chart">
             {stock.price_available ? (
-              <PriceChart symbol={stock.symbol} currency={stock.currency} />
+              <Suspense fallback={<ChartFallback />}>
+                <ChartLoader symbol={stock.symbol} currency={stock.currency} />
+              </Suspense>
             ) : (
               <EmptyState title="No chart for this symbol">{stock.price_note}</EmptyState>
             )}
@@ -143,8 +148,30 @@ async function QuoteSection({ stock }: { stock: SymbolInfo }) {
   return <LiveQuote info={stock} quote={quote.data} />;
 }
 
+/** Seeds the chart's default range from the cache so the first paint doesn't wait on the backend. */
+async function ChartLoader({ symbol, currency }: { symbol: string; currency: string | null }) {
+  let initialChart: Envelope<Chart> | undefined;
+  try {
+    initialChart = await cachedChart(symbol, "1M");
+  } catch {
+    // History may be unavailable for this symbol; let PriceChart fetch and surface the error client-side.
+    initialChart = undefined;
+  }
+  return <PriceChart symbol={symbol} currency={currency} initialChart={initialChart} />;
+}
+
+/** Mirrors PriceChart's footprint (range tabs row + 288px plot) so swapping it in doesn't shift the page. */
+function ChartFallback() {
+  return (
+    <div role="status" aria-label="Loading chart">
+      <div className="mb-2 h-6" />
+      <Skeleton className="h-72 w-full" />
+    </div>
+  );
+}
+
 async function ProfileSection({ symbol }: { symbol: string }) {
-  const profile = await settle(api.profile(symbol));
+  const profile = await settle(cachedProfile(symbol));
   if (profile.error) {
     if (profile.error.code === "no_data" || profile.error.code === "unavailable") {
       return <EmptyState title="No company profile available" />;
@@ -160,9 +187,10 @@ async function ProfileSection({ symbol }: { symbol: string }) {
 }
 
 async function StatsSection({ stock }: { stock: SymbolInfo }) {
+  // The quote is a live price (uncached); metrics are fundamentals (cached hours).
   const [quote, metrics] = await Promise.all([
     stock.price_available ? settle(api.quote(stock.symbol)) : Promise.resolve(null),
-    settle(api.metrics(stock.symbol)),
+    settle(cachedMetrics(stock.symbol)),
   ]);
   const quoteData = quote?.data?.data ?? null;
   const metricsData = metrics.data?.data ?? null;
@@ -178,7 +206,7 @@ async function StatsSection({ stock }: { stock: SymbolInfo }) {
 }
 
 async function SignalSection({ symbol }: { symbol: string }) {
-  const signal = await settle(api.signal(symbol));
+  const signal = await settle(cachedSignal(symbol));
   if (signal.error) {
     return (
       <div className="space-y-2">
@@ -198,7 +226,7 @@ async function SignalSection({ symbol }: { symbol: string }) {
 }
 
 async function NewsSection({ symbol }: { symbol: string }) {
-  const news = await settle(api.news(symbol));
+  const news = await settle(cachedNews(symbol));
   if (news.error) return <ErrorState message={news.error.message} retryable={news.error.retryable} />;
   return (
     <>

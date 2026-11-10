@@ -27,9 +27,10 @@ export function convertAmount(amount: number, from: string, to: string, usdPerUn
   return (amount * a) / b;
 }
 
-export function ForexView() {
-  // Public data; useAuthedQuery just adds the token when signed in.
-  const { state, reload } = useAuthedQuery<ForexBoard>("/api/v1/forex");
+export function ForexView({ initialBoard }: { initialBoard?: ForexBoard }) {
+  // Public data; useAuthedQuery just adds the token when signed in. `initialBoard` is the server-cached
+  // board: it shows immediately and skips the first fetch, so a warm visit never waits on the backend.
+  const { state, reload } = useAuthedQuery<ForexBoard>("/api/v1/forex", initialBoard);
   const warming = state.kind === "ready" && (state.data.refreshing || state.data.as_of === null);
 
   // The first visit after a server restart starts a background refresh; poll until it lands.

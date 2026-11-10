@@ -1,9 +1,11 @@
+import { connection } from "next/server";
 import { Suspense } from "react";
 
 import { MiniLineChart } from "@/components/macro/MiniLineChart";
 import { Card, EmptyState, PageHeader, SkeletonBlock } from "@/components/ui/primitives";
 import { ErrorState, StaleBadge } from "@/components/ui/status";
-import { api, toApiError } from "@/lib/api";
+import { toApiError } from "@/lib/api";
+import { cachedMacro } from "@/lib/cached";
 import { formatDate } from "@/lib/format";
 import type { MacroCard, MacroDashboard } from "@/types/api";
 
@@ -23,9 +25,11 @@ export default function MacroPage() {
 }
 
 async function Dashboard() {
+  // Dynamic at the component level so the cache fills at request time, not during `next build`.
+  await connection();
   let data: MacroDashboard;
   try {
-    data = await api.macro();
+    data = await cachedMacro();
   } catch (error) {
     const e = toApiError(error);
     return <ErrorState message={e.message} retryable={e.retryable} />;
