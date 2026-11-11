@@ -5,10 +5,9 @@ import { Suspense } from "react";
 import { Disclaimer, SignalBadge, SignalCard } from "@/components/signals/SignalCard";
 import { Card, EmptyState, PageHeader, SkeletonBlock } from "@/components/ui/primitives";
 import { ErrorState } from "@/components/ui/status";
-import { toApiError } from "@/lib/api";
-import { cachedSignalHistory, cachedSignalPerformance } from "@/lib/cached";
+import { cachedSignalHistory, cachedSignalPerformance, toSettled } from "@/lib/cached";
 import { formatPct } from "@/lib/format";
-import type { LabelStats, Signal, SignalLabel, SignalPerformance } from "@/types/api";
+import type { LabelStats, SignalLabel } from "@/types/api";
 
 export const metadata = { title: "Signal history" };
 
@@ -48,17 +47,15 @@ export default function SignalsPage({ searchParams }: PageProps<"/signals">) {
 async function Performance() {
   // No params/searchParams here, so keep it dynamic to fill the cache at request time, not at build.
   await connection();
-  let data: SignalPerformance;
-  try {
-    data = await cachedSignalPerformance();
-  } catch (error) {
-    const e = toApiError(error);
+  const result = toSettled(await cachedSignalPerformance());
+  if (result.error) {
     return (
       <div className="p-3">
-        <ErrorState message={e.message} retryable={e.retryable} />
+        <ErrorState message={result.error.message} retryable={result.error.retryable} />
       </div>
     );
   }
+  const data = result.data;
   const byKey = new Map(data.stats.map((s) => [`${s.label}|${s.horizon_days}`, s]));
   const measured = data.stats.reduce((n, s) => n + s.count, 0);
   if (measured === 0) {
@@ -130,13 +127,11 @@ async function RecentSignals({ searchParams }: { searchParams: PageProps<"/signa
   const label = LABELS.find((l) => l === (Array.isArray(raw) ? raw[0] : raw));
   // `searchParams` is read above (request-time), so this is already dynamic; the label is passed as the
   // cache key, not read inside the cached scope.
-  let signals: Signal[];
-  try {
-    signals = await cachedSignalHistory(label);
-  } catch (error) {
-    const e = toApiError(error);
-    return <ErrorState message={e.message} retryable={e.retryable} />;
+  const result = toSettled(await cachedSignalHistory(label));
+  if (result.error) {
+    return <ErrorState message={result.error.message} retryable={result.error.retryable} />;
   }
+  const signals = result.data;
   return (
     <Card
       title="Recent signals"

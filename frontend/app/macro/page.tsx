@@ -4,10 +4,9 @@ import { Suspense } from "react";
 import { MiniLineChart } from "@/components/macro/MiniLineChart";
 import { Card, EmptyState, PageHeader, SkeletonBlock } from "@/components/ui/primitives";
 import { ErrorState, StaleBadge } from "@/components/ui/status";
-import { toApiError } from "@/lib/api";
-import { cachedMacro } from "@/lib/cached";
+import { cachedMacro, toSettled } from "@/lib/cached";
 import { formatDate } from "@/lib/format";
-import type { MacroCard, MacroDashboard } from "@/types/api";
+import type { MacroCard } from "@/types/api";
 
 export const metadata = { title: "Macro" };
 
@@ -27,13 +26,11 @@ export default function MacroPage() {
 async function Dashboard() {
   // Dynamic at the component level so the cache fills at request time, not during `next build`.
   await connection();
-  let data: MacroDashboard;
-  try {
-    data = await cachedMacro();
-  } catch (error) {
-    const e = toApiError(error);
-    return <ErrorState message={e.message} retryable={e.retryable} />;
+  const result = toSettled(await cachedMacro());
+  if (result.error) {
+    return <ErrorState message={result.error.message} retryable={result.error.retryable} />;
   }
+  const data = result.data;
   if (!data.configured) {
     return (
       <EmptyState title="Macro data isn't set up">

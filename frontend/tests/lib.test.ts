@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 
+// cached.ts calls cacheLife() from next/cache, which only runs inside a real "use cache" scope. Stub it so the
+// module's pure helper (toSettled) is importable here.
+vi.mock("next/cache", () => ({ cacheLife: vi.fn() }));
+
+import { toSettled } from "@/lib/cached";
 import { rangeChange, toChartPoints, tzOffsetSeconds } from "@/lib/chart";
 import { direction, formatChange, formatCompact, formatCountdown, formatMoney, formatPct, formatPrice } from "@/lib/format";
 import { mergeLiveTrade } from "@/lib/quotes";
@@ -139,5 +144,28 @@ describe("same-origin API (Vercel proxy)", () => {
     expect(streamUrl(["AAPL", "OANDA:XAU_USD"], "https://marketpulse-api.onrender.com")).toBe(
       "https://marketpulse-api.onrender.com/api/v1/stream?symbols=AAPL,OANDA%3AXAU_USD",
     );
+  });
+});
+
+describe("toSettled (cached error carrier)", () => {
+  it("passes data through on success", () => {
+    const r = toSettled({ ok: true, value: { hello: "world" } });
+    expect(r).toEqual({ data: { hello: "world" }, error: null });
+  });
+
+  it("rebuilds the ApiError so the backend's code and message survive the cache boundary", () => {
+    // Regression guard: a thrown ApiError gets redacted crossing `use cache`, which turned specific
+    // errors (e.g. no_data → "No company profile available") into a generic "something went wrong".
+    const r = toSettled({ ok: false, error: { message: "No data available for this request.", status: 404, code: "no_data" } });
+    expect(r.data).toBeNull();
+    expect(r.error?.message).toBe("No data available for this request.");
+    expect(r.error?.code).toBe("no_data");
+    expect(r.error?.status).toBe(404);
+    expect(r.error?.retryable).toBe(false); // 404/no_data must not offer a pointless retry
+  });
+
+  it("keeps transient failures retryable", () => {
+    const r = toSettled({ ok: false, error: { message: "Server trouble", status: 503, code: "unknown" } });
+    expect(r.error?.retryable).toBe(true);
   });
 });

@@ -10,7 +10,7 @@ import { LiveQuote } from "@/components/stock/StockHeader";
 import { Card, EmptyState, Skeleton, SkeletonBlock } from "@/components/ui/primitives";
 import { ErrorState, StaleBadge } from "@/components/ui/status";
 import { ApiError, api, toApiError } from "@/lib/api";
-import { cachedChart, cachedMetrics, cachedNews, cachedProfile, cachedSignal, cachedStockInfo } from "@/lib/cached";
+import { cachedChart, cachedMetrics, cachedNews, cachedProfile, cachedSignal, cachedStockInfo, toSettled } from "@/lib/cached";
 import type { Chart, Envelope, SymbolInfo } from "@/types/api";
 
 export async function generateMetadata({ params }: PageProps<"/stock/[symbol]">): Promise<Metadata> {
@@ -39,7 +39,7 @@ async function StockContent({ params }: { params: PageProps<"/stock/[symbol]">["
   const symbol = decodeURIComponent((await params).symbol).toUpperCase();
   // Downstream of `await params` (an unlisted dynamic route), so this subtree is request-time, not built —
   // the cached reads below fill at runtime and never force a backend call during `next build`.
-  const info = await settle(cachedStockInfo(symbol));
+  const info = toSettled(await cachedStockInfo(symbol));
   if (info.error) {
     if (info.error.code === "not_found") {
       return (
@@ -150,13 +150,10 @@ async function QuoteSection({ stock }: { stock: SymbolInfo }) {
 
 /** Seeds the chart's default range from the cache so the first paint doesn't wait on the backend. */
 async function ChartLoader({ symbol, currency }: { symbol: string; currency: string | null }) {
-  let initialChart: Envelope<Chart> | undefined;
-  try {
-    initialChart = await cachedChart(symbol, "1M");
-  } catch {
-    // History may be unavailable for this symbol; let PriceChart fetch and surface the error client-side.
-    initialChart = undefined;
-  }
+  // History may be unavailable for this symbol; on a miss, hand over undefined and PriceChart fetches and
+  // surfaces the error client-side.
+  const chart = await cachedChart(symbol, "1M");
+  const initialChart: Envelope<Chart> | undefined = chart.ok ? chart.value : undefined;
   return <PriceChart symbol={symbol} currency={currency} initialChart={initialChart} />;
 }
 
@@ -171,7 +168,7 @@ function ChartFallback() {
 }
 
 async function ProfileSection({ symbol }: { symbol: string }) {
-  const profile = await settle(cachedProfile(symbol));
+  const profile = toSettled(await cachedProfile(symbol));
   if (profile.error) {
     if (profile.error.code === "no_data" || profile.error.code === "unavailable") {
       return <EmptyState title="No company profile available" />;
@@ -190,7 +187,7 @@ async function StatsSection({ stock }: { stock: SymbolInfo }) {
   // The quote is a live price (uncached); metrics are fundamentals (cached hours).
   const [quote, metrics] = await Promise.all([
     stock.price_available ? settle(api.quote(stock.symbol)) : Promise.resolve(null),
-    settle(cachedMetrics(stock.symbol)),
+    cachedMetrics(stock.symbol).then(toSettled),
   ]);
   const quoteData = quote?.data?.data ?? null;
   const metricsData = metrics.data?.data ?? null;
@@ -206,7 +203,7 @@ async function StatsSection({ stock }: { stock: SymbolInfo }) {
 }
 
 async function SignalSection({ symbol }: { symbol: string }) {
-  const signal = await settle(cachedSignal(symbol));
+  const signal = toSettled(await cachedSignal(symbol));
   if (signal.error) {
     return (
       <div className="space-y-2">
@@ -226,7 +223,7 @@ async function SignalSection({ symbol }: { symbol: string }) {
 }
 
 async function NewsSection({ symbol }: { symbol: string }) {
-  const news = await settle(cachedNews(symbol));
+  const news = toSettled(await cachedNews(symbol));
   if (news.error) return <ErrorState message={news.error.message} retryable={news.error.retryable} />;
   return (
     <>

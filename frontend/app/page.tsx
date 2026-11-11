@@ -10,9 +10,7 @@ import { BriefTeaser } from "@/components/signals/BriefTeaser";
 import { AutoRefresh } from "@/components/ui/AutoRefresh";
 import { Card, PageHeader, Skeleton, SkeletonBlock } from "@/components/ui/primitives";
 import { ErrorState, LocalTime, StaleBadge } from "@/components/ui/status";
-import { toApiError } from "@/lib/api";
-import { cachedOverview } from "@/lib/cached";
-import type { MarketOverview } from "@/types/api";
+import { cachedOverview, toSettled } from "@/lib/cached";
 
 export default function MarketsPage() {
   return (
@@ -31,13 +29,11 @@ export default function MarketsPage() {
 async function Overview() {
   // Stay dynamic so the cache fills at request time, not during `next build` (the backend may be asleep then).
   await connection();
-  let overview: MarketOverview;
-  try {
-    overview = await cachedOverview();
-  } catch (error) {
-    const apiError = toApiError(error);
-    return <ErrorState message={apiError.message} retryable={apiError.retryable} />;
+  const result = toSettled(await cachedOverview());
+  if (result.error) {
+    return <ErrorState message={result.error.message} retryable={result.error.retryable} />;
   }
+  const overview = result.data;
 
   return (
     <div className="space-y-4">

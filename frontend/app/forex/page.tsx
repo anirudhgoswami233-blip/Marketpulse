@@ -4,7 +4,6 @@ import { Suspense } from "react";
 import { ForexView } from "@/components/forex/ForexView";
 import { PageHeader, SkeletonBlock } from "@/components/ui/primitives";
 import { cachedForex } from "@/lib/cached";
-import type { ForexBoard } from "@/types/api";
 
 export const metadata = { title: "Forex & metals" };
 
@@ -13,13 +12,8 @@ export const metadata = { title: "Forex & metals" };
 async function ForexBoardLoader() {
   // Dynamic at the component level so the cache fills at request time, not during `next build`.
   await connection();
-  let initialBoard: ForexBoard | undefined;
-  try {
-    initialBoard = await cachedForex();
-  } catch {
-    initialBoard = undefined;
-  }
-  return <ForexView initialBoard={initialBoard} />;
+  const board = await cachedForex();
+  return <ForexView initialBoard={board.ok ? board.value : undefined} />;
 }
 
 export default function ForexPage() {
