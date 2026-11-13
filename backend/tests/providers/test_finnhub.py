@@ -299,6 +299,52 @@ async def test_market_status_mapping(provider: FinnhubProvider, respx_mock: resp
     assert status.timezone == "America/New_York"
 
 
+async def test_recommendation_trends_are_newest_first(
+    provider: FinnhubProvider, respx_mock: respx.MockRouter
+) -> None:
+    respx_mock.get(f"{BASE_URL}/stock/recommendation", params={"symbol": "AAPL"}).respond(
+        json=[
+            {"period": "2026-09-01", "strongBuy": 12, "buy": 20, "hold": 9, "sell": 2, "strongSell": 0},
+            {"period": "2026-10-01", "strongBuy": 14, "buy": 21, "hold": 8, "sell": 1, "strongSell": None},
+            {"period": "", "strongBuy": 1},
+        ]
+    )
+    trends = (await provider.get_recommendation_trends("AAPL")).data
+    assert [t.period for t in trends] == [date(2026, 10, 1), date(2026, 9, 1)]
+    assert (trends[0].strong_buy, trends[0].buy, trends[0].strong_sell) == (14, 21, 0)
+
+
+async def test_earnings_surprises_mapping(provider: FinnhubProvider, respx_mock: respx.MockRouter) -> None:
+    respx_mock.get(f"{BASE_URL}/stock/earnings", params={"symbol": "AAPL"}).respond(
+        json=[
+            {
+                "period": "2026-06-30", "quarter": 3, "year": 2026, "actual": 1.57, "estimate": 1.43,
+                "surprise": 0.14, "surprisePercent": 9.7902,
+            },
+            {"period": "2026-09-30", "quarter": 4, "year": 2026, "actual": None, "estimate": 1.6},
+        ]
+    )  # fmt: skip
+    quarters = (await provider.get_earnings_surprises("AAPL")).data
+    assert [q.period for q in quarters] == [date(2026, 9, 30), date(2026, 6, 30)]
+    assert quarters[0].eps_actual is None and quarters[0].eps_estimate == Decimal("1.6")
+    assert quarters[1].surprise_pct == Decimal("9.7902")
+
+
+async def test_peers_keeps_only_symbol_strings(
+    provider: FinnhubProvider, respx_mock: respx.MockRouter
+) -> None:
+    respx_mock.get(f"{BASE_URL}/stock/peers", params={"symbol": "AAPL"}).respond(json=["AAPL", "DELL", "", 7])
+    assert (await provider.get_peers("AAPL")).data == ["AAPL", "DELL"]
+
+
+async def test_peers_rejects_unexpected_shape(
+    provider: FinnhubProvider, respx_mock: respx.MockRouter
+) -> None:
+    respx_mock.get(f"{BASE_URL}/stock/peers").respond(json={"peers": []})
+    with pytest.raises(ProviderError):
+        await provider.get_peers("AAPL")
+
+
 async def test_unsupported_capability_raises(provider: FinnhubProvider) -> None:
     from app.providers.base import Interval
 

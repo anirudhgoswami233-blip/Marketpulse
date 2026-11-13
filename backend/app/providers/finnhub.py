@@ -19,6 +19,7 @@ from app.providers.base import (
     CompanyProfile,
     EarningsEvent,
     EarningsSession,
+    EarningsSurprise,
     ForexSymbol,
     IpoEvent,
     KeyMetrics,
@@ -28,6 +29,7 @@ from app.providers.base import (
     MarketStatus,
     NewsItem,
     Quote,
+    RecommendationTrend,
     SymbolMatch,
     SymbolRecord,
 )
@@ -195,6 +197,55 @@ class FinnhubProvider(MarketDataProvider):
             avg_volume_3m=avg_3m * MILLION if avg_3m is not None else None,
         )
 
+    @cached(ttl=TTL_REFERENCE)
+    async def get_recommendation_trends(self, symbol: str) -> list[RecommendationTrend]:
+        raw = await self._get("/stock/recommendation", {"symbol": symbol})
+        trends = []
+        for item in _expect_list(raw, "/stock/recommendation"):
+            period = _date(item.get("period"))
+            if period is None:
+                continue
+            trends.append(
+                RecommendationTrend(
+                    period=period,
+                    strong_buy=_count(item.get("strongBuy")),
+                    buy=_count(item.get("buy")),
+                    hold=_count(item.get("hold")),
+                    sell=_count(item.get("sell")),
+                    strong_sell=_count(item.get("strongSell")),
+                )
+            )
+        # Newest month first, whatever order the vendor used.
+        return sorted(trends, key=lambda t: t.period, reverse=True)
+
+    @cached(ttl=TTL_REFERENCE)
+    async def get_earnings_surprises(self, symbol: str) -> list[EarningsSurprise]:
+        raw = await self._get("/stock/earnings", {"symbol": symbol})
+        quarters = []
+        for item in _expect_list(raw, "/stock/earnings"):
+            period = _date(item.get("period"))
+            if period is None:
+                continue
+            quarters.append(
+                EarningsSurprise(
+                    period=period,
+                    quarter=item.get("quarter") if isinstance(item.get("quarter"), int) else None,
+                    year=item.get("year") if isinstance(item.get("year"), int) else None,
+                    eps_actual=_dec(item.get("actual")),
+                    eps_estimate=_dec(item.get("estimate")),
+                    surprise=_dec(item.get("surprise")),
+                    surprise_pct=_dec(item.get("surprisePercent")),
+                )
+            )
+        return sorted(quarters, key=lambda q: q.period, reverse=True)
+
+    @cached(ttl=TTL_REFERENCE)
+    async def get_peers(self, symbol: str) -> list[str]:
+        raw = await self._get("/stock/peers", {"symbol": symbol})
+        if not isinstance(raw, list):
+            raise ProviderError(self.name, "unexpected response shape from /stock/peers")
+        return [item for item in raw if isinstance(item, str) and item]
+
     @cached(ttl=TTL_NEWS)
     async def get_company_news(self, symbol: str, start: date, end: date) -> list[NewsItem]:
         raw = await self._get(
@@ -329,6 +380,10 @@ def _dec(value: Any) -> Decimal | None:
         return Decimal(str(value))
     except InvalidOperation:
         return None
+
+
+def _count(value: Any) -> int:
+    return value if isinstance(value, int) and not isinstance(value, bool) and value >= 0 else 0
 
 
 def _require_dec(value: Any, field: str) -> Decimal:

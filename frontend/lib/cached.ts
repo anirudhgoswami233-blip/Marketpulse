@@ -24,12 +24,15 @@ import type {
   Chart,
   ChartRange,
   CompanyProfile,
+  EarningsSurprise,
   Envelope,
   ForexBoard,
   KeyMetrics,
   MacroDashboard,
   MarketOverview,
   NewsItem,
+  Peer,
+  RecommendationTrend,
   Signal,
   SignalLabel,
   SignalPerformance,
@@ -112,6 +115,45 @@ export async function cachedMetrics(symbol: string): Promise<Cached<Envelope<Key
   try {
     const value = await api.metrics(symbol);
     cacheLife("hours");
+    return { ok: true, value };
+  } catch (error) {
+    cacheLife("seconds");
+    return failed(error);
+  }
+}
+
+/** Analyst rating counts by month. Updated monthly. */
+export async function cachedRecommendations(symbol: string): Promise<Cached<Envelope<RecommendationTrend[]>>> {
+  "use cache";
+  try {
+    const value = await api.recommendations(symbol);
+    cacheLife("hours");
+    return { ok: true, value };
+  } catch (error) {
+    cacheLife("seconds");
+    return failed(error);
+  }
+}
+
+/** Reported EPS against estimates, by quarter. Changes once a quarter. */
+export async function cachedEarningsHistory(symbol: string): Promise<Cached<Envelope<EarningsSurprise[]>>> {
+  "use cache";
+  try {
+    const value = await api.earningsHistory(symbol);
+    cacheLife("hours");
+    return { ok: true, value };
+  } catch (error) {
+    cacheLife("seconds");
+    return failed(error);
+  }
+}
+
+/** Same-industry companies. Rarely changes. */
+export async function cachedPeers(symbol: string): Promise<Cached<Envelope<Peer[]>>> {
+  "use cache";
+  try {
+    const value = await api.peers(symbol);
+    cacheLife("days");
     return { ok: true, value };
   } catch (error) {
     cacheLife("seconds");

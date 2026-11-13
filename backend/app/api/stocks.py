@@ -7,8 +7,15 @@ from app.api.deps import ContainerDep, SessionDep, SymbolDep
 from app.container import Container
 from app.core.cache import Fetched
 from app.models import Symbol
-from app.providers.base import CompanyProfile, KeyMetrics, NewsItem, Quote
-from app.schemas.markets import ChartOut, SearchResults, SymbolOut
+from app.providers.base import (
+    CompanyProfile,
+    EarningsSurprise,
+    KeyMetrics,
+    NewsItem,
+    Quote,
+    RecommendationTrend,
+)
+from app.schemas.markets import ChartOut, PeerOut, SearchResults, SymbolOut
 from app.services import quote_service, search_service, stock_service
 from app.services.stock_service import ChartRange
 
@@ -67,6 +74,21 @@ async def profile(symbol: SymbolDep, container: ContainerDep) -> Fetched[Company
 @router.get("/stocks/{symbol}/metrics", response_model=Fetched[KeyMetrics])
 async def metrics(symbol: SymbolDep, container: ContainerDep) -> Fetched[KeyMetrics]:
     return await stock_service.get_metrics(container.providers.reference, symbol)
+
+
+@router.get("/stocks/{symbol}/recommendations", response_model=Fetched[list[RecommendationTrend]])
+async def recommendations(symbol: SymbolDep, container: ContainerDep) -> Fetched[list[RecommendationTrend]]:
+    return await stock_service.get_recommendations(container.providers.reference, symbol)
+
+
+@router.get("/stocks/{symbol}/earnings", response_model=Fetched[list[EarningsSurprise]])
+async def earnings_history(symbol: SymbolDep, container: ContainerDep) -> Fetched[list[EarningsSurprise]]:
+    return await stock_service.get_earnings_history(container.providers.reference, symbol)
+
+
+@router.get("/stocks/{symbol}/peers", response_model=Fetched[list[PeerOut]])
+async def peers(symbol: SymbolDep, container: ContainerDep, session: SessionDep) -> Fetched[list[PeerOut]]:
+    return await stock_service.get_peers(session, container.providers.reference, symbol)
 
 
 @router.get("/stocks/{symbol}/news", response_model=Fetched[list[NewsItem]])

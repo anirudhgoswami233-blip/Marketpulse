@@ -7,17 +7,30 @@ from datetime import UTC, date, datetime, timedelta
 from enum import StrEnum
 from zoneinfo import ZoneInfo
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.cache import CacheBackend, Fetched
 from app.models import Symbol
-from app.providers.base import Bar, CompanyProfile, Interval, KeyMetrics, MarketDataProvider, NewsItem
-from app.schemas.markets import ChartOut
+from app.providers.base import (
+    Bar,
+    CompanyProfile,
+    EarningsSurprise,
+    Interval,
+    KeyMetrics,
+    MarketDataProvider,
+    NewsItem,
+    RecommendationTrend,
+)
+from app.schemas.markets import ChartOut, PeerOut
 from app.services import history_service
 from app.services.reference_data import exchange_schedules
 
 NEWS_LOOKBACK_DAYS = 7
 NEWS_LIMIT = 20
+RECOMMENDATION_MONTHS = 4
+EARNINGS_QUARTERS = 8
+PEERS_LIMIT = 8
 
 
 class ChartRange(StrEnum):
@@ -52,6 +65,41 @@ async def get_profile(provider: MarketDataProvider, symbol: Symbol) -> Fetched[C
 
 async def get_metrics(provider: MarketDataProvider, symbol: Symbol) -> Fetched[KeyMetrics]:
     return await provider.get_key_metrics(symbol.symbol)
+
+
+async def get_recommendations(
+    provider: MarketDataProvider, symbol: Symbol
+) -> Fetched[list[RecommendationTrend]]:
+    fetched = await provider.get_recommendation_trends(symbol.symbol)
+    return fetched.model_copy(update={"data": fetched.data[:RECOMMENDATION_MONTHS]})
+
+
+async def get_earnings_history(
+    provider: MarketDataProvider, symbol: Symbol
+) -> Fetched[list[EarningsSurprise]]:
+    fetched = await provider.get_earnings_surprises(symbol.symbol)
+    return fetched.model_copy(update={"data": fetched.data[:EARNINGS_QUARTERS]})
+
+
+async def get_peers(
+    session: AsyncSession, provider: MarketDataProvider, symbol: Symbol
+) -> Fetched[list[PeerOut]]:
+    """Companies in the same industry, limited to ones in our directory on the same exchange (so every
+    peer links to a page we can price)."""
+    fetched = await provider.get_peers(symbol.symbol)
+    wanted = [s for s in dict.fromkeys(fetched.data) if s != symbol.symbol]
+    rows = await session.scalars(
+        select(Symbol).where(
+            Symbol.symbol.in_(wanted), Symbol.exchange_code == symbol.exchange_code, Symbol.is_active
+        )
+    )
+    by_symbol = {row.symbol: row for row in rows}
+    peers = [
+        PeerOut(symbol=row.symbol, display_symbol=row.display_symbol, description=row.description)
+        for row in (by_symbol.get(s) for s in wanted)
+        if row is not None
+    ][:PEERS_LIMIT]
+    return Fetched[list[PeerOut]](data=peers, as_of=fetched.as_of, source=fetched.source, stale=fetched.stale)
 
 
 async def get_news(

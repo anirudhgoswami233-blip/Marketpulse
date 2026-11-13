@@ -78,6 +78,12 @@ class SymbolOut(BaseModel):
     quote_delay_min: int | None
 
 
+class PeerOut(BaseModel):
+    symbol: str
+    display_symbol: str
+    description: str
+
+
 class SearchResults(BaseModel):
     query: str
     results: list[SymbolOut]

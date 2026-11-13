@@ -6,7 +6,8 @@ import { useEffect, useRef, useState } from "react";
 import { ChangeText, EmptyState, Skeleton } from "@/components/ui/primitives";
 import { ErrorState, StaleBadge } from "@/components/ui/status";
 import { api, toApiError, type ApiError } from "@/lib/api";
-import { CHART_RANGES, rangeChange } from "@/lib/chart";
+import type { ChartMode } from "@/components/stock/ChartCanvas";
+import { CHART_RANGES, SMA_OVERLAYS, rangeChange } from "@/lib/chart";
 import type { Chart, ChartRange, Envelope } from "@/types/api";
 
 type Result = { kind: "ready"; chart: Envelope<Chart> } | { kind: "error"; error: ApiError };
@@ -37,6 +38,9 @@ export function PriceChart({
 }) {
   const [range, setRange] = useState<ChartRange>("1M");
   const [retryToken, setRetryToken] = useState(0);
+  const [mode, setMode] = useState<ChartMode>("line");
+  const [overlays, setOverlays] = useState<number[]>([]);
+  const [showVolume, setShowVolume] = useState(false);
   // Results are tagged with the request they answer; anything else means that request is still loading.
   const requestKey = `${symbol}|${range}|${retryToken}`;
   const seededKey = `${symbol}|1M|0`;
@@ -68,6 +72,9 @@ export function PriceChart({
   // On 1D the header already shows the day's change vs the previous close; a first-bar-to-last-bar
   // figure would contradict it, so only show the range change for longer ranges.
   const change = range === "1D" ? null : rangeChange(bars);
+  const hasVolume = bars.some((bar) => bar.volume !== null && bar.volume > 0);
+  const toggleOverlay = (period: number) =>
+    setOverlays((current) => (current.includes(period) ? current.filter((p) => p !== period) : [...current, period]));
 
   return (
     <div>
@@ -92,6 +99,50 @@ export function PriceChart({
         </div>
       </div>
 
+      {/* Chart tools. The moving-average buttons double as the legend: each carries its line's colour. */}
+      <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+        <div role="group" aria-label="Chart type" className="flex gap-0.5">
+          {(["line", "candles"] as const).map((m) => (
+            <button key={m} type="button" aria-pressed={mode === m} onClick={() => setMode(m)} className="tab capitalize">
+              {m}
+            </button>
+          ))}
+        </div>
+        <div role="group" aria-label="Indicators" className="flex flex-wrap gap-0.5">
+          {SMA_OVERLAYS.map(({ period, token }) => {
+            const enough = bars.length >= period;
+            return (
+              <button
+                key={period}
+                type="button"
+                aria-pressed={overlays.includes(period)}
+                disabled={state.kind === "ready" && !enough}
+                title={
+                  enough
+                    ? `${period}-bar simple moving average`
+                    : `Needs at least ${period} bars; this range has ${bars.length}. Try a longer range.`
+                }
+                onClick={() => toggleOverlay(period)}
+                className="tab tabular inline-flex items-center gap-1 disabled:opacity-50"
+              >
+                <span aria-hidden className="inline-block h-0.5 w-3" style={{ background: `var(${token})` }} />
+                SMA {period}
+              </button>
+            );
+          })}
+          <button
+            type="button"
+            aria-pressed={showVolume}
+            disabled={state.kind === "ready" && !hasVolume}
+            title={hasVolume ? "Traded volume per bar" : "No volume is reported for this symbol"}
+            onClick={() => setShowVolume((v) => !v)}
+            className="tab disabled:opacity-50"
+          >
+            Volume
+          </button>
+        </div>
+      </div>
+
       {state.kind === "loading" && <ChartSkeleton />}
       {state.kind === "error" && (
         <ErrorState
@@ -108,7 +159,13 @@ export function PriceChart({
         <EmptyState title="No price history for this range">Try a longer range.</EmptyState>
       )}
       {state.kind === "ready" && bars.length > 0 && (
-        <ChartCanvas chart={state.chart.data} currency={currency} />
+        <ChartCanvas
+          chart={state.chart.data}
+          currency={currency}
+          mode={mode}
+          overlays={overlays.filter((period) => bars.length >= period)}
+          showVolume={showVolume && hasVolume}
+        />
       )}
     </div>
   );

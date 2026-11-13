@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("next/cache", () => ({ cacheLife: vi.fn() }));
 
 import { toSettled } from "@/lib/cached";
-import { rangeChange, toChartPoints, tzOffsetSeconds } from "@/lib/chart";
+import { rangeChange, sma, toCandlePoints, toChartPoints, toPerformance, toVolumePoints, tzOffsetSeconds } from "@/lib/chart";
 import { direction, formatChange, formatCompact, formatCountdown, formatMoney, formatPct, formatPrice } from "@/lib/format";
 import { mergeLiveTrade } from "@/lib/quotes";
 import type { Bar, Quote } from "@/types/api";
@@ -167,5 +167,38 @@ describe("toSettled (cached error carrier)", () => {
   it("keeps transient failures retryable", () => {
     const r = toSettled({ ok: false, error: { message: "Server trouble", status: 503, code: "unknown" } });
     expect(r.error?.retryable).toBe(true);
+  });
+});
+
+describe("chart indicators", () => {
+  const points = [10, 20, 30, 40, 50].map((value, i) => ({ time: i, value }));
+
+  it("computes a simple moving average from the period-th bar on", () => {
+    expect(sma(points, 3)).toEqual([
+      { time: 2, value: 20 },
+      { time: 3, value: 30 },
+      { time: 4, value: 40 },
+    ]);
+    expect(sma(points, 5)).toEqual([{ time: 4, value: 30 }]);
+  });
+
+  it("returns nothing rather than back-filling when history is too short", () => {
+    expect(sma(points, 6)).toEqual([]);
+    expect(sma([], 20)).toEqual([]);
+  });
+
+  it("indexes a series to percent change from its first value", () => {
+    expect(toPerformance(points).map((p) => p.value)).toEqual([0, 100, 200, 300, 400]);
+    expect(toPerformance([])).toEqual([]);
+    expect(toPerformance([{ time: 0, value: 0 }])).toEqual([]);
+  });
+
+  it("maps bars to candles and to volume, skipping bars without volume", () => {
+    const ohlc = (timestamp: string, open: string, close: string, volume: number | null): Bar => ({
+      timestamp, open, high: "12", low: "8", close, volume,
+    });
+    const bars = [ohlc("2026-10-15T00:00:00Z", "10", "11", 500), ohlc("2026-10-16T00:00:00Z", "11", "9", null)];
+    expect(toCandlePoints(bars, "1M", null)[0]).toMatchObject({ open: 10, high: 12, low: 8, close: 11 });
+    expect(toVolumePoints(bars, "1M", null)).toEqual([{ time: Date.UTC(2026, 9, 15) / 1000, value: 500, up: true }]);
   });
 });

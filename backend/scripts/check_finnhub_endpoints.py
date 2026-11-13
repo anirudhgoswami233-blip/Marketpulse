@@ -94,6 +94,16 @@ def build_probes() -> list[Probe]:
         Probe("Symbols", "Symbol list London (L)", "/stock/symbol", {"exchange": "L"}),
         Probe("Company", "Company profile", "/stock/profile2", {"symbol": "AAPL"}),
         Probe("Company", "Basic financials / metrics", "/stock/metric", {"symbol": "AAPL", "metric": "all"}),
+        Probe("Company", "Analyst recommendation trends", "/stock/recommendation", {"symbol": "AAPL"}),
+        Probe("Company", "Earnings surprises (EPS history)", "/stock/earnings", {"symbol": "AAPL"}),
+        Probe("Company", "Peers", "/stock/peers", {"symbol": "AAPL"}),
+        Probe("Company", "Price target", "/stock/price-target", {"symbol": "AAPL"}),
+        Probe(
+            "Company",
+            "Insider transactions",
+            "/stock/insider-transactions",
+            {"symbol": "AAPL"},
+        ),
         Probe(
             "News",
             "Company news (7d)",

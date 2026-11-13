@@ -35,7 +35,13 @@
   --down-flash: light-dark(rgba(194, 37, 45, 0.18), rgba(255, 122, 117, 0.24));
   --scrim: rgba(0, 0, 0, 0.55);
 
-  --chart-line: var(--accent);
+  /* Categorical series colours for charts (validated for colour-blind separation on both surfaces).
+     Fixed order: 1 = the primary series, 2-4 = overlays / compared symbols. */
+  --series-1: light-dark(#1a56b8, #4f8fe8);
+  --series-2: light-dark(#b45309, #c77a08);
+  --series-3: light-dark(#0891b2, #1a9fb5);
+  --series-4: light-dark(#be185d, #d4508f);
+  --chart-line: var(--series-1);
   --chart-grid: light-dark(#eceef1, #1f2227);
 
   /* Sector heatmap: diverging green (gain) <-> red (loss) around a neutral gray; four steps per arm. */
@@ -214,7 +220,8 @@
   }
   .tab[aria-selected="true"],
   .tab[aria-current="page"],
-  .tab[aria-checked="true"] {
+  .tab[aria-checked="true"],
+  .tab[aria-pressed="true"] {
     border-color: var(--accent);
     background: var(--accent);
     color: var(--on-accent);

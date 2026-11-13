@@ -4,6 +4,7 @@ import type {
   ChartRange,
   CompanyProfile,
   BulkQuotes,
+  EarningsSurprise,
   Envelope,
   ForexBoard,
   IpoWeek,
@@ -11,7 +12,9 @@ import type {
   MacroDashboard,
   MarketOverview,
   NewsItem,
+  Peer,
   Quote,
+  RecommendationTrend,
   SearchResults,
   Signal,
   SignalLabel,
@@ -131,6 +134,10 @@ export const api = {
   profile: (symbol: string) => apiGet<Envelope<CompanyProfile>>(`/api/v1/stocks/${enc(symbol)}/profile`),
   metrics: (symbol: string) => apiGet<Envelope<KeyMetrics>>(`/api/v1/stocks/${enc(symbol)}/metrics`),
   news: (symbol: string) => apiGet<Envelope<NewsItem[]>>(`/api/v1/stocks/${enc(symbol)}/news`),
+  recommendations: (symbol: string) =>
+    apiGet<Envelope<RecommendationTrend[]>>(`/api/v1/stocks/${enc(symbol)}/recommendations`),
+  earningsHistory: (symbol: string) => apiGet<Envelope<EarningsSurprise[]>>(`/api/v1/stocks/${enc(symbol)}/earnings`),
+  peers: (symbol: string) => apiGet<Envelope<Peer[]>>(`/api/v1/stocks/${enc(symbol)}/peers`),
   quotes: (symbols: string[], init?: RequestInit) =>
     apiGet<BulkQuotes>(`/api/v1/quotes?symbols=${symbols.map(enc).join(",")}`, init),
   signal: (symbol: string) => apiGet<Signal>(`/api/v1/stocks/${enc(symbol)}/signal`),

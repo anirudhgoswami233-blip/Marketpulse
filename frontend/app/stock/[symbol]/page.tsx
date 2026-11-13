@@ -4,13 +4,25 @@ import { Suspense } from "react";
 
 import { Disclaimer, SignalCard } from "@/components/signals/SignalCard";
 import { PriceChart } from "@/components/stock/PriceChart";
+import { AnalystRatings, EarningsHistory, PeersList } from "@/components/stock/StockAnalysis";
 import { CompanyProfileCard, KeyStats, NewsList } from "@/components/stock/StockDetails";
 import { StockActions } from "@/components/stock/StockActions";
 import { LiveQuote } from "@/components/stock/StockHeader";
 import { Card, EmptyState, Skeleton, SkeletonBlock } from "@/components/ui/primitives";
 import { ErrorState, StaleBadge } from "@/components/ui/status";
 import { ApiError, api, toApiError } from "@/lib/api";
-import { cachedChart, cachedMetrics, cachedNews, cachedProfile, cachedSignal, cachedStockInfo, toSettled } from "@/lib/cached";
+import {
+  cachedChart,
+  cachedEarningsHistory,
+  cachedMetrics,
+  cachedNews,
+  cachedPeers,
+  cachedProfile,
+  cachedRecommendations,
+  cachedSignal,
+  cachedStockInfo,
+  toSettled,
+} from "@/lib/cached";
 import type { Chart, Envelope, SymbolInfo } from "@/types/api";
 
 export async function generateMetadata({ params }: PageProps<"/stock/[symbol]">): Promise<Metadata> {
@@ -97,11 +109,18 @@ async function StockContent({ params }: { params: PageProps<"/stock/[symbol]">["
           </Card>
 
           {isCompany ? (
-            <Card title="Key statistics">
-              <Suspense fallback={<SkeletonBlock lines={6} label="Loading statistics" />}>
-                <StatsSection stock={stock} />
-              </Suspense>
-            </Card>
+            <>
+              <Card title="Key statistics">
+                <Suspense fallback={<SkeletonBlock lines={6} label="Loading statistics" />}>
+                  <StatsSection stock={stock} />
+                </Suspense>
+              </Card>
+              <Card title="Earnings history" flush>
+                <Suspense fallback={<Padded><SkeletonBlock lines={5} label="Loading earnings history" /></Padded>}>
+                  <EarningsSection stock={stock} />
+                </Suspense>
+              </Card>
+            </>
           ) : (
             <Card title="About this rate">
               <p className="max-w-2xl text-[13px] text-secondary">
@@ -124,6 +143,16 @@ async function StockContent({ params }: { params: PageProps<"/stock/[symbol]">["
             <Card title="Company profile">
               <Suspense fallback={<SkeletonBlock lines={6} label="Loading profile" />}>
                 <ProfileSection symbol={stock.symbol} />
+              </Suspense>
+            </Card>
+            <Card title="Analyst ratings">
+              <Suspense fallback={<SkeletonBlock lines={6} label="Loading analyst ratings" />}>
+                <RatingsSection symbol={stock.symbol} />
+              </Suspense>
+            </Card>
+            <Card title="Peers" flush>
+              <Suspense fallback={<Padded><SkeletonBlock lines={5} label="Loading peers" /></Padded>}>
+                <PeersSection symbol={stock.symbol} />
               </Suspense>
             </Card>
             <Card title="Latest news">
@@ -161,7 +190,7 @@ async function ChartLoader({ symbol, currency }: { symbol: string; currency: str
 function ChartFallback() {
   return (
     <div role="status" aria-label="Loading chart">
-      <div className="mb-2 h-6" />
+      <div className="mb-2 h-14" />
       <Skeleton className="h-72 w-full" />
     </div>
   );
@@ -220,6 +249,77 @@ async function SignalSection({ symbol }: { symbol: string }) {
       </Link>
     </div>
   );
+}
+
+function Padded({ children }: { children: React.ReactNode }) {
+  return <div className="p-3">{children}</div>;
+}
+
+/** Sections with no data on our plan read as an empty state; anything else as an error with retry. */
+function isMissing(error: ApiError): boolean {
+  return error.code === "no_data" || error.code === "unavailable";
+}
+
+async function RatingsSection({ symbol }: { symbol: string }) {
+  const ratings = toSettled(await cachedRecommendations(symbol));
+  if (ratings.error) {
+    if (isMissing(ratings.error)) return <EmptyState title="No analyst coverage for this symbol" />;
+    return <ErrorState message={ratings.error.message} retryable={ratings.error.retryable} />;
+  }
+  return (
+    <>
+      <AnalystRatings trends={ratings.data.data} />
+      <Freshness envelope={ratings.data} />
+    </>
+  );
+}
+
+async function EarningsSection({ stock }: { stock: SymbolInfo }) {
+  const earnings = toSettled(await cachedEarningsHistory(stock.symbol));
+  if (earnings.error) {
+    return (
+      <Padded>
+        {isMissing(earnings.error) ? (
+          <EmptyState title="No earnings history for this symbol" />
+        ) : (
+          <ErrorState message={earnings.error.message} retryable={earnings.error.retryable} />
+        )}
+      </Padded>
+    );
+  }
+  if (earnings.data.data.length === 0) {
+    return (
+      <Padded>
+        <EmptyState title="No earnings history for this symbol" />
+      </Padded>
+    );
+  }
+  return (
+    <>
+      <EarningsHistory quarters={earnings.data.data} currency={stock.currency} />
+      {earnings.data.stale && (
+        <div className="px-3 pb-3">
+          <StaleBadge asOf={earnings.data.as_of} stale />
+        </div>
+      )}
+    </>
+  );
+}
+
+async function PeersSection({ symbol }: { symbol: string }) {
+  const peers = toSettled(await cachedPeers(symbol));
+  if (peers.error || peers.data.data.length === 0) {
+    return (
+      <Padded>
+        {peers.error && !isMissing(peers.error) ? (
+          <ErrorState message={peers.error.message} retryable={peers.error.retryable} />
+        ) : (
+          <EmptyState title="No peers found for this symbol" />
+        )}
+      </Padded>
+    );
+  }
+  return <PeersList symbol={symbol} peers={peers.data.data} />;
 }
 
 async function NewsSection({ symbol }: { symbol: string }) {

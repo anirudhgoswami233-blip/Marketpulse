@@ -138,6 +138,33 @@ export interface KeyMetrics {
   avg_volume_3m: DecimalString | null;
 }
 
+/** Analyst rating counts for one month. */
+export interface RecommendationTrend {
+  period: string; // YYYY-MM-DD (first of the month)
+  strong_buy: number;
+  buy: number;
+  hold: number;
+  sell: number;
+  strong_sell: number;
+}
+
+/** One reported quarter: actual EPS against the consensus estimate. */
+export interface EarningsSurprise {
+  period: string; // YYYY-MM-DD (quarter end)
+  quarter: number | null;
+  year: number | null;
+  eps_actual: DecimalString | null;
+  eps_estimate: DecimalString | null;
+  surprise: DecimalString | null;
+  surprise_pct: DecimalString | null;
+}
+
+export interface Peer {
+  symbol: string;
+  display_symbol: string;
+  description: string;
+}
+
 export interface NewsItem {
   id: string;
   headline: string;

@@ -9,10 +9,16 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn(), push: 
 
 // The chart library needs a real canvas; stub it and assert on our own states instead.
 const setData = vi.fn();
+const addedSeries: string[] = [];
 vi.mock("lightweight-charts", () => ({
-  LineSeries: {},
+  LineSeries: { type: "Line" },
+  CandlestickSeries: { type: "Candlestick" },
+  HistogramSeries: { type: "Histogram" },
   createChart: () => ({
-    addSeries: () => ({ setData, applyOptions: vi.fn() }),
+    addSeries: (definition: { type: string }) => {
+      addedSeries.push(definition.type);
+      return { setData, applyOptions: vi.fn(), priceScale: () => ({ applyOptions: vi.fn() }) };
+    },
     timeScale: () => ({ fitContent: vi.fn() }),
     subscribeCrosshairMove: vi.fn(),
     applyOptions: vi.fn(),
@@ -87,7 +93,7 @@ function chartEnvelope(overrides: Partial<Envelope<Chart>> = {}, bars = 2): Enve
       currency: "USD",
       timezone: "America/New_York",
       bars: Array.from({ length: bars }, (_, i) => ({
-        timestamp: `2026-10-1${5 + i}T00:00:00Z`,
+        timestamp: new Date(Date.UTC(2026, 9, 15 + i)).toISOString().replace(".000Z", "Z"),
         open: "100",
         high: "101",
         low: "99",
@@ -145,6 +151,24 @@ describe("PriceChart", () => {
       fireEvent.click(screen.getByRole("tab", { name: "1Y" }));
     });
     expect(String(fetchMock.mock.calls.at(-1)?.[0])).toContain("range=1Y");
+  });
+
+  it("switches to candles and adds moving averages and volume on request", async () => {
+    render(<PriceChart symbol="AAPL" currency="USD" initialChart={chartEnvelope({}, 60)} />);
+    expect(await screen.findByTestId("price-chart")).toBeTruthy();
+    addedSeries.length = 0;
+
+    fireEvent.click(screen.getByRole("button", { name: "candles" }));
+    fireEvent.click(screen.getByRole("button", { name: "SMA 20" }));
+    fireEvent.click(screen.getByRole("button", { name: "Volume" }));
+    await screen.findByTestId("price-chart");
+
+    expect(screen.getByRole("button", { name: "candles" }).getAttribute("aria-pressed")).toBe("true");
+    expect(addedSeries.slice(-3)).toEqual(["Candlestick", "Line", "Histogram"]);
+    // 60 bars can't carry a 200-bar average, so that overlay is disabled with an explanation.
+    const sma200 = screen.getByRole("button", { name: "SMA 200" }) as HTMLButtonElement;
+    expect(sma200.disabled).toBe(true);
+    expect(sma200.title).toMatch(/Needs at least 200 bars/);
   });
 
   it("draws a seeded chart without fetching, then refetches on a range change", async () => {

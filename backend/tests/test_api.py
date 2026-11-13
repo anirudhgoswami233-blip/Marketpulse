@@ -1,7 +1,7 @@
 import asyncio
 import json
 from collections.abc import Iterator
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from pathlib import Path
 
@@ -14,6 +14,7 @@ from app.api import stream as stream_api
 from app.container import Container
 from app.core.errors import ProviderUnavailable
 from app.main import create_app
+from app.providers.base import EarningsSurprise, RecommendationTrend
 from app.ws.hub import Trade
 from tests.api_helpers import file_db, make_settings, prepare
 from tests.conftest import FAKE_FINNHUB_KEY
@@ -88,6 +89,44 @@ def test_unavailable_data_returns_friendly_503(client: TestClient) -> None:
     assert response.status_code == 503
     assert response.json()["code"] == "unavailable"
     assert "fake" not in response.json()["detail"]
+
+
+def test_recommendations_keep_the_latest_months(client: TestClient, provider: FakeProvider) -> None:
+    provider.recommendations = [
+        RecommendationTrend(period=date(2026, m, 1), strong_buy=m, buy=1, hold=1, sell=0, strong_sell=0)
+        for m in range(10, 4, -1)
+    ]
+    body = client.get("/api/v1/stocks/AAPL/recommendations").json()
+    assert [row["period"] for row in body["data"]] == ["2026-10-01", "2026-09-01", "2026-08-01", "2026-07-01"]
+    assert body["data"][0]["strong_buy"] == 10 and body["source"] == "fake"
+
+
+def test_earnings_history_envelope(client: TestClient, provider: FakeProvider) -> None:
+    provider.earnings_surprises = [
+        EarningsSurprise(
+            period=date(2026, 6, 30), quarter=3, year=2026, eps_actual=Decimal("1.57"),
+            eps_estimate=Decimal("1.43"), surprise=Decimal("0.14"), surprise_pct=Decimal("9.79"),
+        )
+    ]  # fmt: skip
+    body = client.get("/api/v1/stocks/AAPL/earnings").json()
+    assert Decimal(body["data"][0]["surprise_pct"]) == Decimal("9.79")
+    assert body["stale"] is False
+
+
+def test_peers_are_limited_to_directory_symbols_and_exclude_self(
+    client: TestClient, provider: FakeProvider
+) -> None:
+    provider.peers = ["AAPL", "MSFT", "NOTLISTED", "VOD", "MSFT"]
+    body = client.get("/api/v1/stocks/AAPL/peers").json()
+    # VOD is in the directory but on another exchange; NOTLISTED isn't in it at all.
+    assert [p["symbol"] for p in body["data"]] == ["MSFT"]
+    assert body["data"][0]["description"] == "MICROSOFT CORP"
+
+
+def test_analysis_endpoints_degrade_to_friendly_503(client: TestClient) -> None:
+    for path in ("recommendations", "earnings", "peers"):
+        response = client.get(f"/api/v1/stocks/AAPL/{path}")
+        assert response.status_code == 503 and response.json()["code"] == "unavailable"
 
 
 def test_overview_before_first_refresh(client: TestClient) -> None:

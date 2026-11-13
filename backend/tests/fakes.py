@@ -14,6 +14,7 @@ from app.providers.base import (
     Bars,
     CompanyProfile,
     EarningsEvent,
+    EarningsSurprise,
     Interval,
     IpoEvent,
     MacroDataProvider,
@@ -24,6 +25,7 @@ from app.providers.base import (
     MarketStatus,
     NewsItem,
     Quote,
+    RecommendationTrend,
 )
 
 NOW = datetime(2026, 10, 19, 15, 0, tzinfo=UTC)
@@ -76,6 +78,9 @@ class FakeProvider(MarketDataProvider):
         self.earnings: list[EarningsEvent] = []
         self.ipos: list[IpoEvent] = []
         self.calendar_calls: list[tuple[str, date, date]] = []
+        self.recommendations: list[RecommendationTrend] | None = None
+        self.earnings_surprises: list[EarningsSurprise] | None = None
+        self.peers: list[str] | None = None
         self.as_of = NOW
 
     def _wrap[T](self, data: T) -> Fetched[T]:
@@ -125,6 +130,21 @@ class FakeProvider(MarketDataProvider):
 
     async def get_company_profile(self, symbol: str) -> Fetched[CompanyProfile]:
         raise ProviderUnavailable(self.name, "no profiles")
+
+    async def get_recommendation_trends(self, symbol: str) -> Fetched[list[RecommendationTrend]]:
+        if self.recommendations is None:
+            raise ProviderUnavailable(self.name, "no recommendations")
+        return self._wrap(self.recommendations)
+
+    async def get_earnings_surprises(self, symbol: str) -> Fetched[list[EarningsSurprise]]:
+        if self.earnings_surprises is None:
+            raise ProviderUnavailable(self.name, "no earnings history")
+        return self._wrap(self.earnings_surprises)
+
+    async def get_peers(self, symbol: str) -> Fetched[list[str]]:
+        if self.peers is None:
+            raise ProviderUnavailable(self.name, "no peers")
+        return self._wrap(self.peers)
 
 
 def open_us_status() -> MarketStatus:

@@ -86,6 +86,29 @@ class KeyMetrics(BaseModel):
     avg_volume_3m: Decimal | None
 
 
+class RecommendationTrend(BaseModel):
+    """How many analysts held each rating in one month."""
+
+    period: date
+    strong_buy: int
+    buy: int
+    hold: int
+    sell: int
+    strong_sell: int
+
+
+class EarningsSurprise(BaseModel):
+    """One reported quarter: actual EPS against the consensus estimate."""
+
+    period: date
+    quarter: int | None
+    year: int | None
+    eps_actual: Decimal | None
+    eps_estimate: Decimal | None
+    surprise: Decimal | None
+    surprise_pct: Decimal | None
+
+
 class NewsItem(BaseModel):
     id: str
     headline: str
@@ -230,6 +253,15 @@ class MarketDataProvider:
 
     async def get_key_metrics(self, symbol: str) -> Fetched[KeyMetrics]:
         raise _unsupported(self.name, "key metrics")
+
+    async def get_recommendation_trends(self, symbol: str) -> Fetched[list[RecommendationTrend]]:
+        raise _unsupported(self.name, "analyst recommendations")
+
+    async def get_earnings_surprises(self, symbol: str) -> Fetched[list[EarningsSurprise]]:
+        raise _unsupported(self.name, "earnings history")
+
+    async def get_peers(self, symbol: str) -> Fetched[list[str]]:
+        raise _unsupported(self.name, "company peers")
 
     async def get_company_news(self, symbol: str, start: date, end: date) -> Fetched[list[NewsItem]]:
         raise _unsupported(self.name, "company news")
