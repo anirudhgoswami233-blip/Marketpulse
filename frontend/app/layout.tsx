@@ -41,7 +41,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
                 MarketPulse
               </Link>
               {/* MainNav highlights the current route (usePathname), which is request-time data on dynamic routes. */}
-              <Suspense fallback={<Skeleton className="h-7 w-20 lg:w-[30rem]" />}>
+              <Suspense fallback={<Skeleton className="h-7 w-20 xl:w-[38rem]" />}>
                 <MainNav />
               </Suspense>
               <div className="order-last w-full sm:order-none sm:ml-auto sm:flex sm:w-auto sm:flex-1 sm:justify-end">

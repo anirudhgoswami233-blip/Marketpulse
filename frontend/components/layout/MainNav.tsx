@@ -9,6 +9,8 @@ export const NAV_GROUPS: { label: string; links: { href: string; label: string }
     label: "Markets",
     links: [
       { href: "/", label: "Markets" },
+      { href: "/screener", label: "Screener" },
+      { href: "/compare", label: "Compare" },
       { href: "/forex", label: "Forex" },
       { href: "/macro", label: "Macro" },
       { href: "/calendar", label: "Calendar" },
@@ -60,7 +62,7 @@ export function MainNav() {
 
   return (
     <>
-      <nav aria-label="Main" className="hidden items-center gap-0.5 lg:flex">
+      <nav aria-label="Main" className="hidden items-center gap-0.5 xl:flex">
         {NAV_GROUPS.map((group, i) => (
           <div key={group.label} className="flex items-center gap-1">
             {i > 0 && <span aria-hidden className="mx-1 h-4 w-px bg-border" />}
@@ -70,7 +72,7 @@ export function MainNav() {
           </div>
         ))}
       </nav>
-      <div className="lg:hidden">
+      <div className="xl:hidden">
         <button
           type="button"
           aria-expanded={open}

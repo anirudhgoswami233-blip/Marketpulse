@@ -33,6 +33,7 @@ import type {
   NewsItem,
   Peer,
   RecommendationTrend,
+  Screener,
   Signal,
   SignalLabel,
   SignalPerformance,
@@ -62,6 +63,19 @@ export async function cachedOverview(): Promise<Cached<MarketOverview>> {
   "use cache";
   try {
     const value = await api.overview();
+    cacheLife("minutes");
+    return { ok: true, value };
+  } catch (error) {
+    cacheLife("seconds");
+    return failed(error);
+  }
+}
+
+/** Screener rows: snapshot quotes + daily fundamentals + latest signals. Same cadence as the overview. */
+export async function cachedScreener(): Promise<Cached<Screener>> {
+  "use cache";
+  try {
+    const value = await api.screener();
     cacheLife("minutes");
     return { ok: true, value };
   } catch (error) {

@@ -41,6 +41,17 @@ def build_scheduler(container: Container) -> AsyncIOScheduler:
         max_instances=1,
         coalesce=True,
     )
+    # Screener fundamentals (daily) and universe signals. No run at startup, for the same reason as forex
+    # below: the first /screener request starts it instead.
+    scheduler.add_job(
+        run_exclusive,
+        "interval",
+        hours=1,
+        args=[container, "screener_snapshot"],
+        id="screener_snapshot",
+        max_instances=1,
+        coalesce=True,
+    )
     # No run at startup: the in-memory cache is empty after every restart (and dev restarts on each save), so
     # the first /forex request warms the board instead of spending Twelve Data credits on every reload.
     scheduler.add_job(

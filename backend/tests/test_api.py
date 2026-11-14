@@ -129,6 +129,14 @@ def test_analysis_endpoints_degrade_to_friendly_503(client: TestClient) -> None:
         assert response.status_code == 503 and response.json()["code"] == "unavailable"
 
 
+def test_screener_lists_the_universe_before_any_refresh(client: TestClient) -> None:
+    body = client.get("/api/v1/markets/screener").json()
+    assert {row["symbol"] for row in body["rows"]} == {"AAPL", "MSFT"}
+    assert body["universe_size"] >= 2 and body["pending_fundamentals"] == 2
+    assert body["refreshing"] is False and body["fundamentals_as_of"] is None
+    assert all(row["price"] is None and row["signal_label"] is None for row in body["rows"])
+
+
 def test_overview_before_first_refresh(client: TestClient) -> None:
     body = client.get("/api/v1/markets/overview").json()
     assert body["as_of"] is None

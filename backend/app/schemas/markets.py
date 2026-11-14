@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 
 from pydantic import BaseModel
@@ -59,6 +59,40 @@ class MarketOverview(BaseModel):
     as_of: datetime | None
     stale: bool
     pending_symbols: int
+
+
+class ScreenerRow(BaseModel):
+    symbol: str
+    display_symbol: str
+    name: str
+    industry: str | None
+    currency: str | None
+    price: Decimal | None
+    change_pct: Decimal | None
+    market_cap: Decimal | None
+    pe_ttm: Decimal | None
+    eps_ttm: Decimal | None
+    beta: Decimal | None
+    dividend_yield_pct: Decimal | None
+    week52_low: Decimal | None
+    week52_high: Decimal | None
+    # Where the price sits in its 52-week range: 0 = at the low, 100 = at the high.
+    week52_position_pct: Decimal | None
+    # Latest stored technical signal, if one was computed in the last few sessions.
+    signal_label: str | None
+    signal_score: int | None
+    signal_date: date | None
+
+
+class ScreenerOut(BaseModel):
+    rows: list[ScreenerRow]
+    universe_size: int
+    # Symbols still waiting for their first fundamentals fetch (the job fills them in over a few minutes).
+    pending_fundamentals: int
+    refreshing: bool
+    quotes_as_of: datetime | None
+    fundamentals_as_of: datetime | None
+    stale: bool
 
 
 class SymbolOut(BaseModel):

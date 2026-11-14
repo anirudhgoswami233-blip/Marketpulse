@@ -15,6 +15,7 @@ import type {
   Peer,
   Quote,
   RecommendationTrend,
+  Screener,
   SearchResults,
   Signal,
   SignalLabel,
@@ -127,6 +128,7 @@ const enc = encodeURIComponent;
 
 export const api = {
   overview: () => apiGet<MarketOverview>("/api/v1/markets/overview"),
+  screener: () => apiGet<Screener>("/api/v1/markets/screener"),
   search: (q: string, limit = 10, init?: RequestInit) =>
     apiGet<SearchResults>(`/api/v1/search?q=${enc(q)}&limit=${limit}`, init),
   stock: (symbol: string) => apiGet<SymbolInfo>(`/api/v1/stocks/${enc(symbol)}`),

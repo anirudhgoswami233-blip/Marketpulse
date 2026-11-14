@@ -12,13 +12,14 @@ from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 
 from app.container import Container, JobState
-from app.jobs import daily_brief, signal_outcomes
+from app.jobs import daily_brief, screener_snapshot, signal_outcomes
 
 logger = logging.getLogger(__name__)
 
 TRIGGERABLE_JOBS: dict[str, Callable[[Container], Awaitable[None]]] = {
     "daily_brief": daily_brief.run,
     "signal_outcomes": signal_outcomes.run,
+    "screener_snapshot": screener_snapshot.run,
 }
 
 

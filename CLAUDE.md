@@ -65,6 +65,14 @@ Update this section if commands change.
 - On 429 or provider errors: back off, serve cached data with an `as_of` timestamp, and never crash a page.
 - **Free-tier gaps (checked 2026-10-19):** no candles, no non-US quotes/symbol lists, no index (`^GSPC`) or forex quotes, no `/forex/rates`, no `/news-sentiment`. Price history and forex rates come from **Twelve Data** (approved fallback; 7/min and 750/day limiter). Twelve Data's free plan also excludes NSE and other non-US equities. Global indices are shown as US-listed ETF proxies (e.g. INDA, EWJ, VGK), labelled as ETFs. News sentiment is a keyword score over headlines.
 - Symbol directory is seeded into the DB once. Search hits the DB, not Finnhub.
+- **Screener** (`services/screener_service.py`, `jobs/screener_snapshot.py`): rows = overview-snapshot quotes +
+  fundamentals (profile + metrics per universe symbol, refreshed about daily at background priority) + latest
+  stored signal. The page never triggers those ~60 calls: the first `/markets/screener` request (or the hourly
+  job) starts the refresh and rows fill in. The signals pass stops after 3 history failures in a row. The
+  universe is `movers_universe` in `data/market_overview.json`; growing it costs 2 Finnhub calls/day and one
+  Twelve Data credit/day per symbol.
+- Stock-page extras are free-tier Finnhub: `/stock/recommendation`, `/stock/earnings`, `/stock/peers` (24h
+  cache). `/stock/price-target` is premium (not used).
 - **Forex & metals:** routed by exchange (`OANDA`, `FX`) through `ProviderRegistry.quotes_for()` to Twelve Data.
   The /forex board fetches only `base_pairs` (data/forex.json) and derives every cross, and stock-page quotes
   for those pairs come from the board snapshot when fresh (`quote_service.get_symbol_quote`). Twelve Data
@@ -92,6 +100,8 @@ Update this section if commands change.
   `.data-table` + `.num`, `.section-label`) and `Card`/`PageHeader` instead of new one-off styles. Numbers are
   tabular (`.tabular`, automatic in tables); live prices go through `PriceTick`; changes show ▲/▼ plus color.
   Charts read tokens via `lib/chartTheme.ts` and are loaded with `next/dynamic` (keep the library out of page bundles).
+  Multi-series charts take colours from `--series-1..4` in fixed order (validated for colour-blind separation;
+  don't add a fifth, cap the series instead). Indicator math for charts is pure in `lib/chart.ts`.
 - Next.js 16 with Cache Components: read `frontend/node_modules/next/dist/docs/` before using an unfamiliar API (see `frontend/AGENTS.md`). Server components fetch inside `<Suspense>`; live prices come from one shared SSE stream per page (`LiveQuotesProvider`), never one per widget.
 - **Page caching:** public, non-user data is read through `frontend/lib/cached.ts` — `"use cache"` + `cacheLife` wrappers around the public API (overview/macro/profile/metrics/signal/news/chart/forex/signals; times: history+fundamentals hours, macro hours, news+forex 5 min, overview/signals minutes). Non-param pages call `await connection()` before the cached read so the cache fills at request time, never during `next build` (Render sleeps). Never cache per-user data (watchlists, portfolio, auth) or live prices (quotes, SSE). Client views seed from server-cached data via `useAuthedQuery(path, initialData)` / `PriceChart initialChart`, which skips the first client fetch. `as_of` travels with the cached payload, so "data as of" stays accurate. Never read the clock (`new Date()`, `Date.now()`) or randomness in a server component before `await connection()`; ESLint enforces this for `app/**`. Client components may read it only in effects or event handlers.
 

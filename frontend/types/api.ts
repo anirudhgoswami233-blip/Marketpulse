@@ -138,6 +138,38 @@ export interface KeyMetrics {
   avg_volume_3m: DecimalString | null;
 }
 
+export interface ScreenerRow {
+  symbol: string;
+  display_symbol: string;
+  name: string;
+  industry: string | null;
+  currency: string | null;
+  price: DecimalString | null;
+  change_pct: DecimalString | null;
+  market_cap: DecimalString | null;
+  pe_ttm: DecimalString | null;
+  eps_ttm: DecimalString | null;
+  beta: DecimalString | null;
+  dividend_yield_pct: DecimalString | null;
+  week52_low: DecimalString | null;
+  week52_high: DecimalString | null;
+  /** 0 = at the 52-week low, 100 = at the high. */
+  week52_position_pct: DecimalString | null;
+  signal_label: string | null;
+  signal_score: number | null;
+  signal_date: string | null;
+}
+
+export interface Screener {
+  rows: ScreenerRow[];
+  universe_size: number;
+  pending_fundamentals: number;
+  refreshing: boolean;
+  quotes_as_of: IsoDateTime | null;
+  fundamentals_as_of: IsoDateTime | null;
+  stale: boolean;
+}
+
 /** Analyst rating counts for one month. */
 export interface RecommendationTrend {
   period: string; // YYYY-MM-DD (first of the month)

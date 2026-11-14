@@ -5,9 +5,10 @@
 > The backend runs on Render's free tier and sleeps after ~15 idle minutes. If nobody has used the demo for a
 > while, the first load can take ~50 s while it wakes up; after that pages load normally.
 
-A global stock-market web app: a live markets overview, per-symbol stock pages, forex and metals, a macro
-dashboard, earnings and IPO calendars, search, watchlists, paper trading, and a personalised **Daily Market
-Brief** built from technical signals. It runs end to end on free API tiers by funnelling every external call
+A global stock-market web app: a live markets overview, a stock screener, multi-symbol comparison charts,
+per-symbol stock pages (candlestick charts with moving averages, analyst ratings, earnings history, peers),
+forex and metals, a macro dashboard, earnings and IPO calendars, search, watchlists, paper trading, and a
+personalised **Daily Market Brief** built from technical signals. It runs end to end on free API tiers by funnelling every external call
 through a shared rate limiter and cache, and by caching public pages so visitors rarely wait on the backend.
 
 > Signals are educational information based on technical indicators, not financial advice. Paper trading uses
@@ -57,7 +58,9 @@ it is serving cached data. Routes live in `frontend/app/`; the components in par
 | Route | What it is | Key components | Backend |
 |---|---|---|---|
 | `/` | **Markets overview** — regional index ETF-proxies with live prices, each exchange's open/closed status and countdown, a sector heatmap, and top gainers/losers. | `markets/IndexGrid`, `MarketStatusList`, `SectorHeatmap`, `MoversTable`, `LiveQuotesProvider`, `signals/BriefTeaser` | `GET /markets/overview` + SSE `/stream` |
-| `/stock/[symbol]` | **Stock page** — live quote with ▲/▼ change, price chart (1D–5Y), company profile, key statistics, latest news, and a technical signal with its reasons. | `stock/StockHeader` (`LiveQuote`), `PriceChart` → `ChartCanvas` (lazy), `StockDetails`, `StockActions` (add-to-watchlist + paper-trade panel), `signals/SignalCard` | `/stocks/{symbol}` · `/quote` · `/profile` · `/metrics` · `/news` · `/signal` · `/chart` + SSE |
+| `/screener` | **Screener** — the tracked large-cap universe as a sortable table (price, change, market cap, P/E, dividend yield, beta, position in the 52-week range, latest technical signal) with filters: text, industry, signal label and quick rules such as "near 52-week high". | `screener/ScreenerView` (logic in `lib/screener.ts`) | `GET /markets/screener` |
+| `/compare` | **Compare** — up to four symbols on one chart as percent change over 1M/1Y/5Y, with a table of start/latest prices. Shareable via `?symbols=`. | `compare/CompareView` → `CompareCanvas` (lazy) | `/stocks/{symbol}/chart` |
+| `/stock/[symbol]` | **Stock page** — live quote with ▲/▼ change; price chart (1D–5Y) as line or candlesticks with SMA 20/50/200 and volume; company profile, key statistics, analyst ratings, earnings history (EPS vs estimate), peers, latest news, and a technical signal with its reasons. | `stock/StockHeader` (`LiveQuote`), `PriceChart` → `ChartCanvas` (lazy), `StockDetails`, `StockAnalysis`, `StockActions` (add-to-watchlist + paper-trade panel), `signals/SignalCard` | `/stocks/{symbol}` · `/quote` · `/profile` · `/metrics` · `/recommendations` · `/earnings` · `/peers` · `/news` · `/signal` · `/chart` + SSE |
 | `/forex` | **Forex & metals** — majors, INR pairs and gold grouped into tables, plus a currency converter. Crosses are marked as derived. | `forex/ForexView` (`RateTable`, `Converter`) | `GET /forex` |
 | `/macro` | **Macro dashboard** — FRED series (rates, inflation, jobs) as stat tiles with 5-year mini line charts and a data table. | `macro/MiniLineChart` → `MiniLineCanvas` (lazy) | `GET /macro` |
 | `/calendar` | **Earnings & IPO calendar** — one week at a time, filterable, with a "my watchlists only" toggle. Defaults to the current week in your timezone. | `calendar/CalendarView` (`Earnings`, `Ipos`) | `GET /calendar/earnings` · `/calendar/ipos` |
@@ -90,8 +93,9 @@ lives in `components/ui/` — `Card`/`PageHeader`, tables, badges, skeletons, th
 FastAPI, all under `/api/v1`, grouped by router in `backend/app/api/`. Interactive docs at `/docs`.
 
 - **`markets`** — `GET /markets/overview`: the periodic snapshot (index proxies, movers, sectors, exchange
-  status).
-- **`stocks`** — `GET /stocks/{symbol}` (directory info), `/quote`, `/profile`, `/metrics`, `/news`,
+  status). `GET /markets/screener`: the universe with quotes, fundamentals and latest signals.
+- **`stocks`** — `GET /stocks/{symbol}` (directory info), `/quote`, `/profile`, `/metrics`,
+  `/recommendations` (analyst rating trend), `/earnings` (EPS vs estimate by quarter), `/peers`, `/news`,
   `/signal`, `/chart?range=`, and `GET /quotes?symbols=` (bulk, for watchlist rows).
 - **`world`** — `GET /forex`, `/macro`, `/calendar/earnings`, `/calendar/ipos`, `/search`.
 - **`stream`** — `GET /stream?symbols=` (SSE): per-client live-price fan-out from the shared WebSocket.
@@ -124,7 +128,8 @@ Routers stay thin; all logic is in `services/` and `signals/`.
   labelled score with reasons; `ENGINE_VERSION` namespaces stored history), `sentiment.py` (keyword news
   tone), `performance.py` (scores past signals).
 - **`jobs/`** — APScheduler tasks: `market_snapshot` (overview), `forex_snapshot` (board), `daily_brief`
-  (per-user, at each user's local time), `signal_outcomes` (1/5/20-session returns). `scheduler.py` wires
+  (per-user, at each user's local time), `signal_outcomes` (1/5/20-session returns), `screener_snapshot`
+  (daily fundamentals plus a signal per universe symbol; started by the first `/screener` visit). `scheduler.py` wires
   them and `runner.run_exclusive` ensures the in-process scheduler and the external cron never overlap.
 - **`ws/`** — `finnhub_stream.py` holds the one allowed Finnhub socket; `hub.py` reference-counts symbol
   subscriptions and fans trades out to SSE clients, subscribing only to symbols someone is viewing/watching.

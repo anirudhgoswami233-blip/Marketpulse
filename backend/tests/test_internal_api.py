@@ -32,6 +32,7 @@ def calls(monkeypatch: pytest.MonkeyPatch) -> list[str]:
 
     monkeypatch.setitem(runner.TRIGGERABLE_JOBS, "daily_brief", fake("daily_brief"))
     monkeypatch.setitem(runner.TRIGGERABLE_JOBS, "signal_outcomes", fake("signal_outcomes", fail=True))
+    monkeypatch.setitem(runner.TRIGGERABLE_JOBS, "screener_snapshot", fake("screener_snapshot"))
     return calls
 
 
@@ -76,14 +77,14 @@ def test_jobs_endpoints_reject_bad_credentials(
 def test_trigger_runs_each_job_once_and_reports_the_outcome(client: TestClient, calls: list[str]) -> None:
     first = client.post("/api/v1/internal/jobs/run", headers=AUTH)
     assert first.status_code == 202
-    assert first.json()["started"] == ["daily_brief", "signal_outcomes"]
+    assert first.json()["started"] == ["daily_brief", "signal_outcomes", "screener_snapshot"]
     # A second trigger while they run doesn't start them again.
     second = client.post("/api/v1/internal/jobs/run", headers=AUTH).json()
     assert second["started"] == []
-    assert second["already_running"] == ["daily_brief", "signal_outcomes"]
+    assert second["already_running"] == ["daily_brief", "signal_outcomes", "screener_snapshot"]
 
     jobs = _wait_until_idle(client)
-    assert sorted(calls) == ["daily_brief", "signal_outcomes"]
+    assert sorted(calls) == ["daily_brief", "screener_snapshot", "signal_outcomes"]
     assert jobs["daily_brief"]["last_error"] is None
     assert jobs["daily_brief"]["last_finished"] is not None
     # Failures are reported by type only; details stay in the server log.

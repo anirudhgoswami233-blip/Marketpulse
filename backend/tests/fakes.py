@@ -17,6 +17,7 @@ from app.providers.base import (
     EarningsSurprise,
     Interval,
     IpoEvent,
+    KeyMetrics,
     MacroDataProvider,
     MacroObservation,
     MacroSeries,
@@ -78,6 +79,9 @@ class FakeProvider(MarketDataProvider):
         self.earnings: list[EarningsEvent] = []
         self.ipos: list[IpoEvent] = []
         self.calendar_calls: list[tuple[str, date, date]] = []
+        self.profiles: dict[str, CompanyProfile] = {}
+        self.metrics: dict[str, KeyMetrics] = {}
+        self.reference_calls: list[tuple[str, str, Priority]] = []
         self.recommendations: list[RecommendationTrend] | None = None
         self.earnings_surprises: list[EarningsSurprise] | None = None
         self.peers: list[str] | None = None
@@ -129,7 +133,16 @@ class FakeProvider(MarketDataProvider):
         return self._wrap([e for e in self.ipos if start <= e.date <= end])
 
     async def get_company_profile(self, symbol: str) -> Fetched[CompanyProfile]:
-        raise ProviderUnavailable(self.name, "no profiles")
+        self.reference_calls.append(("profile", symbol, current_priority()))
+        if symbol not in self.profiles:
+            raise ProviderUnavailable(self.name, "no profiles")
+        return self._wrap(self.profiles[symbol])
+
+    async def get_key_metrics(self, symbol: str) -> Fetched[KeyMetrics]:
+        self.reference_calls.append(("metrics", symbol, current_priority()))
+        if symbol not in self.metrics:
+            raise ProviderUnavailable(self.name, "no metrics")
+        return self._wrap(self.metrics[symbol])
 
     async def get_recommendation_trends(self, symbol: str) -> Fetched[list[RecommendationTrend]]:
         if self.recommendations is None:
@@ -145,6 +158,24 @@ class FakeProvider(MarketDataProvider):
         if self.peers is None:
             raise ProviderUnavailable(self.name, "no peers")
         return self._wrap(self.peers)
+
+
+def make_profile(
+    symbol: str, name: str, industry: str = "Technology", market_cap: str = "1000"
+) -> CompanyProfile:
+    return CompanyProfile(
+        symbol=symbol, name=name, country="US", currency="USD", exchange="NASDAQ", industry=industry,
+        ipo_date=None, logo_url=None, website=None, market_cap=Decimal(market_cap), shares_outstanding=None,
+    )  # fmt: skip
+
+
+def make_metrics(symbol: str, pe: str = "30", low: str = "80", high: str = "120") -> KeyMetrics:
+    return KeyMetrics(
+        symbol=symbol, week52_high=Decimal(high), week52_high_date=None, week52_low=Decimal(low),
+        week52_low_date=None, pe_ttm=Decimal(pe), eps_ttm=Decimal("5"), pb=None, ps_ttm=None,
+        beta=Decimal("1.1"), dividend_yield_pct=Decimal("0.5"), roe_ttm_pct=None, net_margin_ttm_pct=None,
+        revenue_growth_ttm_yoy_pct=None, avg_volume_10d=None, avg_volume_3m=None,
+    )  # fmt: skip
 
 
 def open_us_status() -> MarketStatus:
