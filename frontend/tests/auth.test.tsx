@@ -109,10 +109,69 @@ describe("AuthForm", () => {
     renderWithAuth(<AuthForm mode="register" />);
     fireEvent.change(screen.getByLabelText("Email"), { target: { value: "alice@example.com" } });
     fireEvent.change(screen.getByLabelText(/^Password/), { target: { value: "long-enough-1" } });
+    fireEvent.change(screen.getByLabelText(/Date of birth/), { target: { value: "1990-05-17" } });
     fireEvent.click(screen.getByRole("button", { name: "Create account" }));
     await waitFor(() => expect(push).toHaveBeenCalledWith("/watchlists"));
     const body = JSON.parse(String(calls.find((c) => c.path === "/api/v1/auth/register")?.init?.body));
     expect(body.timezone).toBe(Intl.DateTimeFormat().resolvedOptions().timeZone);
+    expect(body.birth_date).toBe("1990-05-17");
+  });
+
+  describe("age gate", () => {
+    const fill = (birthDate: string) => {
+      fireEvent.change(screen.getByLabelText("Email"), { target: { value: "kid@example.com" } });
+      fireEvent.change(screen.getByLabelText(/^Password/), { target: { value: "long-enough-1" } });
+      if (birthDate) fireEvent.change(screen.getByLabelText(/Date of birth/), { target: { value: birthDate } });
+      fireEvent.click(screen.getByRole("button", { name: "Create account" }));
+    };
+    const yearsAgo = (years: number) => {
+      const d = new Date();
+      return `${d.getFullYear() - years}-01-01`;
+    };
+
+    it("asks for a date of birth before creating an account", async () => {
+      localStorage.clear();
+      const { calls } = mockApi({ "POST /api/v1/auth/refresh": json({ code: "not_authenticated" }, 401) });
+      renderWithAuth(<AuthForm mode="register" />);
+      fill("");
+      expect((await screen.findByRole("alert")).textContent).toBe("Please enter your date of birth.");
+      expect(calls.some((c) => c.path === "/api/v1/auth/register")).toBe(false);
+    });
+
+    it("refuses an under-age visitor without sending anything, and keeps refusing after a reload", async () => {
+      localStorage.clear();
+      const { calls } = mockApi({ "POST /api/v1/auth/refresh": json({ code: "not_authenticated" }, 401) });
+      const first = renderWithAuth(<AuthForm mode="register" />);
+      fill(yearsAgo(10));
+      expect(await screen.findByText("We can't create an account for you.")).toBeTruthy();
+      // Their email and password never left the browser.
+      expect(calls.some((c) => c.path === "/api/v1/auth/register")).toBe(false);
+
+      first.unmount();
+      renderWithAuth(<AuthForm mode="register" />);
+      expect(await screen.findByText("We can't create an account for you.")).toBeTruthy();
+      expect(screen.queryByLabelText(/Date of birth/)).toBeNull();
+      localStorage.clear();
+    });
+
+    it("honours the server's refusal too", async () => {
+      localStorage.clear();
+      mockApi({
+        "POST /api/v1/auth/refresh": json({ code: "not_authenticated" }, 401),
+        "POST /api/v1/auth/register": json({ detail: "You must be at least 13 years old.", code: "age_restricted" }, 403),
+      });
+      renderWithAuth(<AuthForm mode="register" />);
+      fill("1990-05-17");
+      expect(await screen.findByText("We can't create an account for you.")).toBeTruthy();
+      expect(push).not.toHaveBeenCalledWith("/watchlists");
+      localStorage.clear();
+    });
+
+    it("doesn't apply to signing in", () => {
+      mockApi({ "POST /api/v1/auth/refresh": json({ code: "not_authenticated" }, 401) });
+      renderWithAuth(<AuthForm mode="login" />);
+      expect(screen.queryByLabelText(/Date of birth/)).toBeNull();
+    });
   });
 
   it("only follows same-site relative next paths", () => {

@@ -34,7 +34,7 @@ async def seeded(session_factory: async_sessionmaker[AsyncSession]) -> int:
         )
         await symbol_directory.upsert_symbols(session, "L", [rec("VOD", "VODAFONE")])
         user = await auth_service.register(
-            session, SETTINGS, "alice@example.com", "password123", "Alice", "Asia/Kolkata"
+            session, SETTINGS, "alice@example.com", "password123", "Alice", "Asia/Kolkata", date(1990, 5, 17)
         )
         await session.commit()
         return user.id

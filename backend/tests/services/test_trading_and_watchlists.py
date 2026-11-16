@@ -1,3 +1,4 @@
+from datetime import date
 from decimal import Decimal as D
 
 import pytest
@@ -17,6 +18,7 @@ from tests.fakes import FakeProvider, make_quote
 from tests.services.test_search_and_quotes import rec
 
 SETTINGS = make_settings()
+BORN = date(1990, 5, 17)
 
 
 @pytest.fixture
@@ -28,9 +30,11 @@ async def ctx(session_factory: async_sessionmaker[AsyncSession]) -> dict[str, ob
         )
         await symbol_directory.upsert_symbols(session, "L", [rec("VOD", "VODAFONE")])
         alice = await auth_service.register(
-            session, SETTINGS, "alice@example.com", "password123", "Alice", "UTC"
+            session, SETTINGS, "alice@example.com", "password123", "Alice", "UTC", BORN
         )
-        bob = await auth_service.register(session, SETTINGS, "bob@example.com", "password123", "Bob", "UTC")
+        bob = await auth_service.register(
+            session, SETTINGS, "bob@example.com", "password123", "Bob", "UTC", BORN
+        )
         await session.commit()
         return {"alice": alice.id, "bob": bob.id}
 

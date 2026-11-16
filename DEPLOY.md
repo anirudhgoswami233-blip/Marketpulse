@@ -203,6 +203,8 @@ tab).
 | `OVERVIEW_REFRESH_OPEN_S` / `OVERVIEW_REFRESH_CLOSED_S` | no | render.yaml | `600` / `3600`. Overview snapshot cadence (keeps Upstash usage low) |
 | `LOG_LEVEL` | no | — | Default `INFO` |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | no | you | Emailed briefs. Render's free instances block outbound SMTP ports (at the time of writing), so emailed briefs need a paid instance or a provider on another port |
+| `PUBLIC_APP_URL`, `MAIL_POSTAL_ADDRESS` | only with SMTP | you | Required before any brief email is sent: the public site URL (used for the unsubscribe link in every email) and the sender's physical postal address (printed in every email's footer) |
+| `MIN_SIGNUP_AGE` | no | default `13` | Minimum age to create an account. The date of birth is checked at signup and not stored |
 | `LLM_API_KEY` | no | — | Unused for now (the brief text is templated) |
 
 Other tuning variables (rate limits, limiter waits, watchlist caps) are listed with their defaults in

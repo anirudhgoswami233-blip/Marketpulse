@@ -94,6 +94,13 @@ class Settings(BaseSettings):
     smtp_user: str = ""
     smtp_password: SecretStr | None = None
     smtp_from: str = ""
+    # Both are required before any brief email is sent: every email must carry a working unsubscribe link
+    # (built from the public site URL) and the sender's physical postal address.
+    public_app_url: str = ""
+    mail_postal_address: str = ""
+
+    # Accounts are refused below this age (COPPA). The date of birth is checked at signup and never stored.
+    min_signup_age: int = 13
 
     @field_validator("database_url")
     @classmethod

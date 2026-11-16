@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import hmac
 import logging
 import secrets
 from dataclasses import dataclass
@@ -73,6 +74,24 @@ class TokenSigner:
             return int(claims["sub"])
         except (TypeError, ValueError) as exc:
             raise InvalidToken("bad subject") from exc
+
+    def unsubscribe_token(self, user_id: int) -> str:
+        """A signed, non-expiring token for the unsubscribe link in emails. It can only turn one user's
+        brief emails off, so it doesn't need to expire (and an old email's link must keep working)."""
+        return f"{user_id}.{_unsubscribe_mac(self.secret, user_id)}"
+
+    def verify_unsubscribe_token(self, token: str) -> int:
+        raw_id, _, mac = token.partition(".")
+        if not raw_id.isdigit() or not mac:
+            raise InvalidToken("malformed unsubscribe token")
+        user_id = int(raw_id)
+        if not hmac.compare_digest(mac, _unsubscribe_mac(self.secret, user_id)):
+            raise InvalidToken("bad unsubscribe signature")
+        return user_id
+
+
+def _unsubscribe_mac(secret: str, user_id: int) -> str:
+    return hmac.new(secret.encode(), f"unsubscribe:{user_id}".encode(), hashlib.sha256).hexdigest()
 
 
 def build_signer(settings: Settings) -> TokenSigner:

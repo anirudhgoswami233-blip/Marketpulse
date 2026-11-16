@@ -1,4 +1,5 @@
 from collections.abc import Iterator
+from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
 
@@ -29,10 +30,19 @@ def client(provider: FakeProvider, tmp_path: Path) -> Iterator[TestClient]:
         yield test_client
 
 
+ADULT_BIRTH_DATE = "1990-05-17"
+
+
 def register(client: TestClient, email: str = "alice@example.com") -> dict[str, str]:
     response = client.post(
         "/api/v1/auth/register",
-        json={"email": email, "password": PASSWORD, "display_name": "Alice", "timezone": "Asia/Kolkata"},
+        json={
+            "email": email,
+            "password": PASSWORD,
+            "display_name": "Alice",
+            "timezone": "Asia/Kolkata",
+            "birth_date": ADULT_BIRTH_DATE,
+        },
     )
     assert response.status_code == 201, response.text
     return {"Authorization": f"Bearer {response.json()['access_token']}"}
@@ -51,7 +61,12 @@ def use_refresh_cookie(client: TestClient, value: str) -> None:
 def test_register_returns_access_token_and_sets_httponly_refresh_cookie(client: TestClient) -> None:
     response = client.post(
         "/api/v1/auth/register",
-        json={"email": " Alice@Example.com ", "password": PASSWORD, "timezone": "UTC"},
+        json={
+            "email": " Alice@Example.com ",
+            "password": PASSWORD,
+            "timezone": "UTC",
+            "birth_date": ADULT_BIRTH_DATE,
+        },
     )
     assert response.status_code == 201
     body = response.json()
@@ -70,6 +85,9 @@ def test_register_returns_access_token_and_sets_httponly_refresh_cookie(client: 
         ({"email": "not-an-email", "password": PASSWORD}, "invalid_email"),
         ({"email": "a@example.com", "password": "short"}, "invalid_password"),
         ({"email": "a@example.com", "password": PASSWORD, "timezone": "Mars/Base"}, "invalid_timezone"),
+        ({"email": "a@example.com", "password": PASSWORD}, "birth_date_required"),
+        ({"email": "a@example.com", "password": PASSWORD, "birth_date": "2999-01-01"}, "invalid_birth_date"),
+        ({"email": "a@example.com", "password": PASSWORD, "birth_date": "1800-01-01"}, "invalid_birth_date"),
     ],
 )
 def test_register_validation(client: TestClient, payload: dict[str, str], code: str) -> None:
@@ -78,9 +96,39 @@ def test_register_validation(client: TestClient, payload: dict[str, str], code: 
     assert response.json()["code"] == code
 
 
+def test_signup_is_refused_under_the_minimum_age_and_nothing_is_stored(client: TestClient) -> None:
+    today = datetime.now(UTC).date()
+    twelve = today.replace(year=today.year - 12).isoformat()
+    payload = {"email": "kid@example.com", "password": PASSWORD, "birth_date": twelve}
+
+    response = client.post("/api/v1/auth/register", json=payload)
+
+    assert response.status_code == 403
+    assert response.json()["code"] == "age_restricted"
+    assert "13" in response.json()["detail"]
+    assert "set-cookie" not in response.headers  # no session
+    # No account was created: the same email can still sign in to nothing.
+    login = client.post("/api/v1/auth/login", json={"email": "kid@example.com", "password": PASSWORD})
+    assert login.status_code == 401
+
+
+def test_signup_is_allowed_exactly_at_the_minimum_age(client: TestClient) -> None:
+    today = datetime.now(UTC).date()
+    thirteen_today = today.replace(year=today.year - 13).isoformat()
+    response = client.post(
+        "/api/v1/auth/register",
+        json={"email": "teen@example.com", "password": PASSWORD, "birth_date": thirteen_today},
+    )
+    assert response.status_code == 201
+    assert "birth" not in response.text  # the date of birth is not echoed back or kept on the profile
+
+
 def test_duplicate_email_is_rejected(client: TestClient) -> None:
     register(client)
-    response = client.post("/api/v1/auth/register", json={"email": "ALICE@example.com", "password": PASSWORD})
+    response = client.post(
+        "/api/v1/auth/register",
+        json={"email": "ALICE@example.com", "password": PASSWORD, "birth_date": ADULT_BIRTH_DATE},
+    )
     assert response.status_code == 409
     assert response.json()["code"] == "email_taken"
 

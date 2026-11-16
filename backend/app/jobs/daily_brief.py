@@ -16,7 +16,7 @@ from app.core.ratelimit import background_priority
 from app.models import SignalRecord, User
 from app.services import brief_service, markets_service, signal_service
 from app.services.brief_service import BriefSymbol, TemplateWriter
-from app.services.email_service import email_configured, send_email
+from app.services.email_service import email_configured, send_email, unsubscribe_url
 
 logger = logging.getLogger(__name__)
 
@@ -81,6 +81,7 @@ async def generate_for(container: Container, users: Sequence[User], now: datetim
                     user.email,
                     f"Your MarketPulse brief for {brief.brief_date:%d %b %Y}",
                     brief.summary_md,
+                    unsubscribe_url(container.settings, container.signer.unsubscribe_token(user.id)),
                 )
                 if sent:
                     brief.emailed_at = datetime.now(UTC)

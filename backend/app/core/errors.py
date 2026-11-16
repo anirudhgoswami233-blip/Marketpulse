@@ -61,5 +61,9 @@ class TooManyRequests(AppError):
     status, code = 429, "too_many_requests"
 
 
+class AgeRestricted(AppError):
+    status, code = 403, "age_restricted"
+
+
 class ValidationFailed(AppError):
     status, code = 422, "invalid"

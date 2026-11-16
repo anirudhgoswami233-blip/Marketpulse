@@ -18,6 +18,8 @@ export interface RegisterInput {
   password: string;
   displayName?: string;
   timezone: string;
+  /** YYYY-MM-DD. Checked against the minimum signup age by the server and not stored. */
+  birthDate: string;
 }
 
 interface AuthContextValue {
@@ -104,6 +106,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           password: input.password,
           display_name: input.displayName || null,
           timezone: input.timezone,
+          birth_date: input.birthDate,
         },
       });
       applySession(session);

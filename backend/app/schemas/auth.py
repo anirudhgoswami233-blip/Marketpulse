@@ -1,4 +1,4 @@
-from datetime import datetime, time
+from datetime import date, datetime, time
 
 from pydantic import BaseModel, Field
 
@@ -8,6 +8,8 @@ class RegisterIn(BaseModel):
     password: str = Field(max_length=128)
     display_name: str | None = Field(default=None, max_length=80)
     timezone: str = Field(default="UTC", max_length=64)
+    # Checked against the minimum signup age, then discarded: it is never stored.
+    birth_date: date | None = None
 
 
 class LoginIn(BaseModel):

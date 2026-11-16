@@ -49,7 +49,7 @@ async def register(
 ) -> TokenOut:
     settings = container.settings
     user = await auth_service.register(
-        session, settings, body.email, body.password, body.display_name, body.timezone
+        session, settings, body.email, body.password, body.display_name, body.timezone, body.birth_date
     )
     issued = await auth_service.issue_session(session, container.signer, settings, user)
     await session.commit()

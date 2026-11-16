@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from sqlalchemy import select, update
@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.cache import CacheBackend
 from app.core.config import Settings
-from app.core.errors import Conflict, TooManyRequests, Unauthorized, ValidationFailed
+from app.core.errors import AgeRestricted, Conflict, TooManyRequests, Unauthorized, ValidationFailed
 from app.core.security import (
     TokenSigner,
     hash_password,
@@ -59,6 +59,26 @@ def validate_registration(email: str, password: str, timezone: str) -> None:
     validate_timezone(timezone)
 
 
+MAX_PLAUSIBLE_AGE = 120
+
+
+def age_on(birth_date: date, today: date) -> int:
+    """Completed years between `birth_date` and `today`."""
+    before_birthday = (today.month, today.day) < (birth_date.month, birth_date.day)
+    return today.year - birth_date.year - (1 if before_birthday else 0)
+
+
+def validate_age(birth_date: date | None, minimum_age: int, today: date | None = None) -> None:
+    """Refuse signups below `minimum_age`. The date is only checked here; nothing stores it."""
+    today = today or datetime.now(UTC).date()
+    if birth_date is None:
+        raise ValidationFailed("Please enter your date of birth.", code="birth_date_required")
+    if birth_date > today or age_on(birth_date, today) > MAX_PLAUSIBLE_AGE:
+        raise ValidationFailed("Please enter a valid date of birth.", code="invalid_birth_date")
+    if age_on(birth_date, today) < minimum_age:
+        raise AgeRestricted(f"You must be at least {minimum_age} years old to create an account.")
+
+
 def validate_timezone(timezone: str) -> None:
     try:
         ZoneInfo(timezone)
@@ -73,9 +93,11 @@ async def register(
     password: str,
     display_name: str | None,
     timezone: str,
+    birth_date: date | None,
 ) -> User:
     email = normalize_email(email)
     validate_registration(email, password, timezone)
+    validate_age(birth_date, settings.min_signup_age)
     user = User(
         email=email,
         password_hash=hash_password(password),
