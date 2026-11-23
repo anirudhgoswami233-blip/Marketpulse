@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { MoversTable } from "@/components/markets/MoversTable";
 import { heatColor, SectorHeatmap } from "@/components/markets/SectorHeatmap";
 import { NewsList } from "@/components/stock/StockDetails";
+import type { NewsItem } from "@/types/api";
 import { PriceTick } from "@/components/ui/PriceTick";
 import { ChangeText } from "@/components/ui/primitives";
 import { ErrorState, StaleBadge } from "@/components/ui/status";
@@ -89,6 +90,28 @@ describe("empty states", () => {
   it("NewsList", () => {
     render(<NewsList items={[]} />);
     expect(screen.getByText("No news in the last 7 days")).toBeTruthy();
+  });
+
+  it("NewsList shows the event badge and the headline's next-session reaction", () => {
+    const item: NewsItem = {
+      id: "1",
+      headline: "Apple beats estimates on record revenue",
+      summary: "",
+      source: "Reuters",
+      url: "https://example.test/1",
+      image_url: null,
+      published_at: "2026-10-15T21:00:00Z",
+      category: null,
+      related_symbols: ["AAPL"],
+      impact: { category: "earnings", category_label: "Earnings", materiality: "high", tone: 1 },
+      reaction: { ref_date: "2026-10-15", next_date: "2026-10-16", move_pct: "10.00" },
+    };
+    render(<NewsList items={[item]} />);
+    expect(screen.getByText("Earnings")).toBeTruthy();
+    expect(screen.getByText(/High impact/)).toBeTruthy();
+    expect(screen.getByText(/10\.00%\s+next session/)).toBeTruthy();
+    // Descriptive only: no buy/sell language leaks into the UI.
+    expect(screen.queryByText(/\b(buy|sell)\b/i)).toBeNull();
   });
 });
 

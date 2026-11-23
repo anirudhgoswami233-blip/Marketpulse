@@ -11,12 +11,11 @@ from app.providers.base import (
     CompanyProfile,
     EarningsSurprise,
     KeyMetrics,
-    NewsItem,
     Quote,
     RecommendationTrend,
 )
-from app.schemas.markets import ChartOut, PeerOut, SearchResults, SymbolOut
-from app.services import quote_service, search_service, stock_service
+from app.schemas.markets import ChartOut, NewsItemOut, PeerOut, SearchResults, SymbolOut
+from app.services import news_service, quote_service, search_service, stock_service
 from app.services.stock_service import ChartRange
 
 router = APIRouter(prefix="/api/v1", tags=["stocks"])
@@ -91,9 +90,11 @@ async def peers(symbol: SymbolDep, container: ContainerDep, session: SessionDep)
     return await stock_service.get_peers(session, container.providers.reference, symbol)
 
 
-@router.get("/stocks/{symbol}/news", response_model=Fetched[list[NewsItem]])
-async def news(symbol: SymbolDep, container: ContainerDep) -> Fetched[list[NewsItem]]:
-    return await stock_service.get_news(container.providers.news, symbol)
+@router.get("/stocks/{symbol}/news", response_model=Fetched[list[NewsItemOut]])
+async def news(symbol: SymbolDep, container: ContainerDep, session: SessionDep) -> Fetched[list[NewsItemOut]]:
+    return await news_service.get_stock_news(
+        session, container.providers.news, container.providers.history, container.cache, symbol
+    )
 
 
 @router.get("/stocks/{symbol}/chart", response_model=Fetched[ChartOut])

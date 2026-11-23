@@ -1,6 +1,6 @@
 import { EmptyState } from "@/components/ui/primitives";
 import { formatCompact, formatDate, formatNumber, formatPct, formatPrice } from "@/lib/format";
-import type { CompanyProfile, KeyMetrics, NewsItem, Quote } from "@/types/api";
+import type { CompanyProfile, KeyMetrics, NewsImpact, NewsItem, NewsReaction, Quote } from "@/types/api";
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
@@ -84,6 +84,37 @@ export function CompanyProfileCard({ profile }: { profile: CompanyProfile }) {
   );
 }
 
+/** Event type badge; emphasised wording for high-impact news so it reads without relying on colour. */
+function ImpactBadge({ impact }: { impact: NewsImpact }) {
+  if (impact.category === "other" && impact.materiality === "low") return null;
+  return (
+    <span className="badge">
+      {impact.category_label}
+      {impact.materiality === "high" && (
+        <span className="uppercase tracking-wide"> · High impact</span>
+      )}
+    </span>
+  );
+}
+
+/** The stock's actual move the first session after the headline — a past move, labelled as such. */
+function ReactionTag({ reaction }: { reaction: NewsReaction }) {
+  const n = Number(reaction.move_pct);
+  const cls = n > 0 ? "text-up" : n < 0 ? "text-down" : "text-muted";
+  const arrow = n > 0 ? "▲" : n < 0 ? "▼" : "●";
+  return (
+    <span
+      className={`tabular ${cls}`}
+      title={`First trading session after this headline (${reaction.ref_date} → ${reaction.next_date})`}
+    >
+      <span aria-hidden className="text-[0.7em]">
+        {arrow}
+      </span>{" "}
+      {formatPct(reaction.move_pct)} next session
+    </span>
+  );
+}
+
 export function NewsList({ items }: { items: NewsItem[] }) {
   if (items.length === 0) {
     return <EmptyState title="No news in the last 7 days" />;
@@ -95,9 +126,13 @@ export function NewsList({ items }: { items: NewsItem[] }) {
           <a href={item.url} target="_blank" rel="noopener noreferrer" className="group block">
             <p className="text-[13px] font-medium text-primary group-hover:text-accent">{item.headline}</p>
             {item.summary && <p className="mt-0.5 line-clamp-1 text-xs text-secondary">{item.summary}</p>}
-            <p className="tabular mt-0.5 text-2xs text-muted">
-              {item.source} · <time dateTime={item.published_at}>{item.published_at.slice(0, 10)}</time>
-            </p>
+            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-2xs text-muted">
+              <ImpactBadge impact={item.impact} />
+              {item.reaction && <ReactionTag reaction={item.reaction} />}
+              <span className="tabular">
+                {item.source} · <time dateTime={item.published_at}>{item.published_at.slice(0, 10)}</time>
+              </span>
+            </div>
           </a>
         </li>
       ))}
