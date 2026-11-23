@@ -7,6 +7,7 @@ from sqlalchemy import select
 
 from app.api.deps import ContainerDep, CurrentUser, SessionDep
 from app.api.stocks import forex_board_max_age, to_symbol_out
+from app.container import Container
 from app.core.errors import NoDataError, ProviderError, ProviderUnavailable
 from app.models import Symbol, Trade
 from app.schemas.portfolio import (
@@ -18,9 +19,10 @@ from app.schemas.portfolio import (
     TradeOut,
     WatchlistCreate,
     WatchlistItemCreate,
+    WatchlistNewsOut,
     WatchlistOut,
 )
-from app.services import quote_service, trading_service, watchlist_service
+from app.services import news_digest_service, quote_service, trading_service, watchlist_service
 from app.services.portfolio_math import q
 from app.services.search_service import price_available, resolve_symbol
 from app.services.trading_service import PortfolioView, Side
@@ -42,6 +44,36 @@ def _watchlist_out(view: WatchlistView) -> WatchlistOut:
 @router.get("/watchlists", response_model=list[WatchlistOut])
 async def list_watchlists(user: CurrentUser, session: SessionDep) -> list[WatchlistOut]:
     return [_watchlist_out(v) for v in await watchlist_service.list_watchlists(session, user.id)]
+
+
+def _digest_task_name(user_id: int) -> str:
+    return f"news-digest:{user_id}"
+
+
+async def _run_digest(container: Container, user_id: int) -> None:
+    now = datetime.now(UTC)
+    async with container.session_factory() as session:
+        symbols = await news_digest_service.watched_symbols(session, user_id)
+    await news_digest_service.refresh_digest(container.providers.news, container.cache, user_id, symbols, now)
+
+
+@router.get("/watchlist-news", response_model=WatchlistNewsOut)
+async def watchlist_news(user: CurrentUser, session: SessionDep, container: ContainerDep) -> WatchlistNewsOut:
+    """The 'what matters' digest. First visit (or the first after the snapshot goes stale) starts a bounded
+    background refresh; the panel shows what's ready and fills in."""
+    now = datetime.now(UTC)
+    name = _digest_task_name(user.id)
+    refreshing = container.is_running(name)
+    if (
+        container.settings.enable_background_jobs
+        and not refreshing
+        and news_digest_service.needs_refresh(
+            await news_digest_service.load_digest(container.cache, user.id), now
+        )
+    ):
+        container.spawn(_run_digest(container, user.id), name=name)
+        refreshing = True
+    return await news_digest_service.get_digest(session, container.cache, user.id, now, refreshing)
 
 
 @router.post("/watchlists", response_model=WatchlistOut, status_code=status.HTTP_201_CREATED)

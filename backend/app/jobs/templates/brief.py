@@ -30,6 +30,14 @@ class BriefItem:
     reasons: Sequence[str]
 
 
+@dataclass(frozen=True)
+class NewsLine:
+    symbol: str
+    category_label: str
+    materiality: str  # "high" | "medium"
+    headline: str
+
+
 def _pct(value: float | None) -> str:
     return "n/a" if value is None else f"{value:+.2f}%"
 
@@ -56,12 +64,20 @@ def render(
     moves: Sequence[RegionMove],
     items: Sequence[BriefItem],
     unavailable: Sequence[str],
+    news: Sequence[NewsLine] = (),
 ) -> str:
     lines = [f"# Daily Market Brief: {brief_date:%A, %d %B %Y}", "", f"Good morning, {display_name}.", ""]
     lines += ["## Overnight", "", _overnight_sentence(moves), ""]
     for m in moves:
         lines.append(f"- **{m.region}** {_pct(m.avg_change_pct)}: {m.detail}")
     lines.append("")
+
+    if news:
+        lines += ["## News that moved your stocks", ""]
+        for n in news:
+            flag = " (high impact)" if n.materiality == "high" else ""
+            lines.append(f"- **{n.symbol}** [{n.category_label}{flag}]: {n.headline}")
+        lines.append("")
 
     for source, title in (("watchlist", "Your watchlist"), ("trending", "Trending today")):
         group = [i for i in items if i.source == source]

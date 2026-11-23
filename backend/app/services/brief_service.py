@@ -17,9 +17,10 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.cache import CacheBackend
-from app.jobs.templates.brief import BriefItem, RegionMove, render
+from app.jobs.templates.brief import BriefItem, NewsLine, RegionMove, render
 from app.models import Brief, BriefSignal, SignalRecord, Symbol, User, Watchlist, WatchlistItem
 from app.services.markets_service import load_snapshot
+from app.services.news_service import NewsHighlight
 from app.services.reference_data import overview_config
 from app.services.search_service import price_available
 
@@ -133,6 +134,7 @@ class BriefContext:
     moves: Sequence[RegionMove]
     items: Sequence[BriefItem]
     unavailable: Sequence[str]
+    news: Sequence[NewsLine] = ()
 
 
 class BriefWriter(Protocol):
@@ -146,7 +148,12 @@ class TemplateWriter:
 
     async def write(self, context: BriefContext) -> str:
         return render(
-            context.user.display_name, context.brief_date, context.moves, context.items, context.unavailable
+            context.user.display_name,
+            context.brief_date,
+            context.moves,
+            context.items,
+            context.unavailable,
+            context.news,
         )
 
 
@@ -158,12 +165,17 @@ async def build_brief(
     symbols: Sequence[BriefSymbol],
     signals: dict[int, SignalRecord],
     now: datetime,
+    news: dict[int, NewsHighlight] | None = None,
 ) -> Brief:
-    """Store (or replace) the user's brief for their local date from already-computed signals."""
+    """Store (or replace) the user's brief for their local date from already-computed signals and news."""
+    news = news or {}
     brief_date = local_now(user, now).date()
     moves, overnight = await overnight_moves(cache)
     items, unavailable, links = [], [], []
+    highlights: list[NewsHighlight] = []
     for entry in symbols:
+        if entry.symbol.id in news and all(h.symbol != news[entry.symbol.id].symbol for h in highlights):
+            highlights.append(news[entry.symbol.id])
         record = signals.get(entry.symbol.id)
         if record is None:
             unavailable.append(entry.symbol.display_symbol)
@@ -180,8 +192,18 @@ async def build_brief(
         )
         links.append((record.id, entry.source))
     overnight["unavailable"] = unavailable
+    overnight["headlines"] = [h.to_dict() for h in highlights]
 
-    context = BriefContext(user, brief_date, moves, items, unavailable)
+    news_lines = [
+        NewsLine(
+            symbol=h.display_symbol,
+            category_label=h.category_label,
+            materiality=h.materiality,
+            headline=h.headline,
+        )
+        for h in highlights
+    ]
+    context = BriefContext(user, brief_date, moves, items, unavailable, news_lines)
     summary = await writer.write(context)
     await session.execute(delete(Brief).where(Brief.user_id == user.id, Brief.brief_date == brief_date))
     brief = Brief(

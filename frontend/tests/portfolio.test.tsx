@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { PortfolioView } from "@/components/portfolio/PortfolioView";
 import { WatchlistsView } from "@/components/portfolio/WatchlistsView";
+import { WhatMatters } from "@/components/portfolio/WhatMatters";
 import { TradePanel } from "@/components/stock/StockActions";
 import { liveTotals, revaluePosition } from "@/lib/portfolio";
 import type { Portfolio, Position, SymbolInfo, Watchlist } from "@/types/api";
@@ -59,7 +60,57 @@ const quoteEnvelope = (symbol: string, price: string, stale = false) => ({
   stale,
 });
 
-const refresh = { "POST /api/v1/auth/refresh": json(SESSION) };
+const emptyDigest = {
+  items: [],
+  refreshing: false,
+  symbols_total: 0,
+  symbols_pending: 0,
+  as_of: null,
+  stale: false,
+};
+const refresh = {
+  "POST /api/v1/auth/refresh": json(SESSION),
+  "GET /api/v1/watchlist-news": json(emptyDigest),
+};
+
+describe("WhatMatters", () => {
+  it("shows material headlines with event badges and no buy/sell language", async () => {
+    mockApi({
+      ...refresh,
+      "GET /api/v1/watchlist-news": json({
+        items: [
+          {
+            symbol: "AAPL",
+            display_symbol: "AAPL",
+            name: "APPLE INC",
+            category: "earnings",
+            category_label: "Earnings",
+            materiality: "high",
+            headline: "Apple beats estimates on record revenue",
+            url: "https://example.test/1",
+            published_at: "2026-10-19T12:00:00Z",
+          },
+        ],
+        refreshing: false,
+        symbols_total: 1,
+        symbols_pending: 0,
+        as_of: "2026-10-19T12:05:00Z",
+        stale: false,
+      }),
+    });
+    renderWithAuth(<WhatMatters />);
+    expect(await screen.findByText("Apple beats estimates on record revenue")).toBeTruthy();
+    expect(screen.getByText("Earnings")).toBeTruthy();
+    expect(screen.getByText(/High impact/)).toBeTruthy();
+    expect(screen.queryByText(/\b(buy|sell)\b/i)).toBeNull();
+  });
+
+  it("shows an empty state when nothing is material", async () => {
+    mockApi({ ...refresh, "GET /api/v1/watchlist-news": json({ ...emptyDigest, symbols_total: 2 }) });
+    renderWithAuth(<WhatMatters />);
+    expect(await screen.findByText(/No market-moving news/)).toBeTruthy();
+  });
+});
 
 describe("WatchlistsView", () => {
   it("shows a loading state, then rows with prices and plan-limit notes", async () => {

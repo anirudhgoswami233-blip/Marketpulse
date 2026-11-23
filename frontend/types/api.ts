@@ -287,6 +287,27 @@ export interface Watchlist {
   symbols: SymbolInfo[];
 }
 
+export interface WatchlistNewsItem {
+  symbol: string;
+  display_symbol: string;
+  name: string;
+  category: string;
+  category_label: string;
+  materiality: "high" | "medium";
+  headline: string;
+  url: string;
+  published_at: IsoDateTime;
+}
+
+export interface WatchlistNews {
+  items: WatchlistNewsItem[];
+  refreshing: boolean;
+  symbols_total: number;
+  symbols_pending: number;
+  as_of: IsoDateTime | null;
+  stale: boolean;
+}
+
 export interface QuoteResult {
   symbol: string;
   quote: Envelope<Quote> | null;
@@ -402,13 +423,30 @@ export interface BriefRegion {
   detail: string[];
 }
 
+export interface BriefHeadline {
+  symbol: string;
+  display_symbol: string;
+  name: string;
+  category: string;
+  category_label: string;
+  materiality: "high" | "medium";
+  headline: string;
+  url: string;
+  published_at: IsoDateTime;
+}
+
 export interface Brief {
   id: number;
   brief_date: string;
   generated_at: IsoDateTime;
   generator: string;
   summary_md: string;
-  overnight: { regions: BriefRegion[]; as_of: IsoDateTime | null; unavailable?: string[] };
+  overnight: {
+    regions: BriefRegion[];
+    as_of: IsoDateTime | null;
+    unavailable?: string[];
+    headlines?: BriefHeadline[];
+  };
   items: { source: "watchlist" | "trending"; signal: Signal }[];
   emailed_at: IsoDateTime | null;
   disclaimer: string;
