@@ -6,6 +6,7 @@ import { useState, type FormEvent } from "react";
 import { useBulkQuotes } from "@/components/portfolio/useBulkQuotes";
 import { LiveQuotesProvider, useSharedLiveQuotes } from "@/components/markets/LiveQuotesProvider";
 import { SearchBox } from "@/components/search/SearchBox";
+import { WhatMatters } from "@/components/portfolio/WhatMatters";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { PriceTick } from "@/components/ui/PriceTick";
 import { Card, ChangeText, EmptyState, Skeleton, SkeletonBlock } from "@/components/ui/primitives";
@@ -96,6 +97,7 @@ export function WatchlistsView() {
 
   return (
     <div className="space-y-3">
+      <WhatMatters />
       <div className="flex flex-wrap items-center gap-1">
         <div className="flex flex-wrap items-center gap-1" role="tablist" aria-label="Your watchlists">
           {lists.map((w) => (

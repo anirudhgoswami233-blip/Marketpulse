@@ -16,6 +16,29 @@ class WatchlistOut(BaseModel):
     symbols: list[SymbolOut]
 
 
+class WatchlistNewsItem(BaseModel):
+    symbol: str
+    display_symbol: str
+    name: str
+    category: str
+    category_label: str
+    materiality: str  # "high" | "medium"
+    headline: str
+    url: str
+    published_at: datetime
+
+
+class WatchlistNewsOut(BaseModel):
+    """The 'what matters' digest: material news across the user's watched symbols."""
+
+    items: list[WatchlistNewsItem]
+    refreshing: bool
+    symbols_total: int
+    symbols_pending: int
+    as_of: datetime | None
+    stale: bool
+
+
 class WatchlistCreate(BaseModel):
     name: str = Field(max_length=200)
 

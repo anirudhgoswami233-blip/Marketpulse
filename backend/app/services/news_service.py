@@ -105,29 +105,45 @@ class NewsHighlight:
         }
 
 
+def _highlight(symbol: Symbol, item: NewsItem, impact: news_impact.NewsImpact) -> NewsHighlight:
+    return NewsHighlight(
+        symbol=symbol.symbol,
+        display_symbol=symbol.display_symbol,
+        name=symbol.description,
+        category=impact.category.value,
+        category_label=news_impact.CATEGORY_LABELS[impact.category],
+        materiality=impact.materiality.value,
+        headline=item.headline,
+        url=item.url,
+        published_at=item.published_at,
+    )
+
+
+def _rank(highlight: NewsHighlight) -> tuple[int, datetime]:
+    """Sort key: more material first, then newer. Highest sorts last, so use with reverse/max."""
+    return (_MATERIALITY_RANK[Materiality(highlight.materiality)], highlight.published_at)
+
+
+def sort_highlights(highlights: Sequence[NewsHighlight]) -> list[NewsHighlight]:
+    """Most material first, then newest. Pure."""
+    return sorted(highlights, key=_rank, reverse=True)
+
+
+def material_headlines(symbol: Symbol, items: Sequence[NewsItem]) -> list[NewsHighlight]:
+    """Every HIGH/MEDIUM headline for a symbol, most material and newest first. Pure, no I/O."""
+    return sort_highlights(
+        [
+            _highlight(symbol, item, impact)
+            for item in items
+            if (impact := news_impact.classify(item.headline, item.summary)).materiality in MATERIAL_LEVELS
+        ]
+    )
+
+
 def pick_highlight(symbol: Symbol, items: Sequence[NewsItem]) -> NewsHighlight | None:
-    """Most material recent headline (HIGH/MEDIUM only), newest breaking ties. Pure, no I/O."""
-    best_key: tuple[int, datetime] | None = None
-    chosen: NewsHighlight | None = None
-    for item in items:
-        impact = news_impact.classify(item.headline, item.summary)
-        if impact.materiality not in MATERIAL_LEVELS:
-            continue
-        key = (_MATERIALITY_RANK[impact.materiality], item.published_at)
-        if best_key is None or key > best_key:
-            best_key = key
-            chosen = NewsHighlight(
-                symbol=symbol.symbol,
-                display_symbol=symbol.display_symbol,
-                name=symbol.description,
-                category=impact.category.value,
-                category_label=news_impact.CATEGORY_LABELS[impact.category],
-                materiality=impact.materiality.value,
-                headline=item.headline,
-                url=item.url,
-                published_at=item.published_at,
-            )
-    return chosen
+    """The single most material, newest headline (HIGH/MEDIUM only). Pure, no I/O."""
+    highlights = material_headlines(symbol, items)
+    return highlights[0] if highlights else None
 
 
 async def top_material_headline(
