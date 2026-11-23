@@ -6,6 +6,10 @@ const backendUrl = process.env.API_BASE_URL?.replace(/\/+$/, "");
 
 const nextConfig: NextConfig = {
   cacheComponents: true,
+  experimental: {
+    // Opt into security-only agent upgrades (set by `next upgrade --agent=security`).
+    agentUpgrade: "security",
+  },
   async rewrites() {
     return backendUrl ? [{ source: "/api/v1/:path*", destination: `${backendUrl}/api/v1/:path*` }] : [];
   },
