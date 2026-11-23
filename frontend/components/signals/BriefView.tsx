@@ -168,6 +168,27 @@ function BriefContent({ brief }: { brief: Brief }) {
           </p>
         )}
       </Card>
+      {brief.overnight.headlines && brief.overnight.headlines.length > 0 && (
+        <Card title="News that moved your stocks">
+          <ul className="divide-y divide-border">
+            {brief.overnight.headlines.map((h) => (
+              <li key={`${h.symbol}-${h.url}`} className="py-2 first:pt-0 last:pb-0">
+                <a href={h.url} target="_blank" rel="noopener noreferrer" className="group block">
+                  <p className="text-[13px] font-medium text-primary group-hover:text-accent">{h.headline}</p>
+                  <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-2xs text-muted">
+                    <span className="badge">{h.display_symbol}</span>
+                    <span className="badge">
+                      {h.category_label}
+                      {h.materiality === "high" && <span className="uppercase tracking-wide"> · High impact</span>}
+                    </span>
+                    <span className="tabular">{h.name}</span>
+                  </div>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
       {groups.map(({ source, items }) => (
         <Card key={source} title={source === "watchlist" ? "Your watchlist" : "Trending today"}>
           {items.length === 0 ? (

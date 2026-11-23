@@ -14,9 +14,10 @@ from app.container import Container
 from app.core.errors import AppError, ProviderError
 from app.core.ratelimit import background_priority
 from app.models import SignalRecord, User
-from app.services import brief_service, markets_service, signal_service
+from app.services import brief_service, markets_service, news_service, signal_service
 from app.services.brief_service import BriefSymbol, TemplateWriter
 from app.services.email_service import email_configured, send_email, unsubscribe_url
+from app.services.news_service import NewsHighlight
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +45,25 @@ async def compute_signals(
     return signals
 
 
+async def collect_news(
+    container: Container, symbols: Sequence[BriefSymbol], now: datetime
+) -> dict[int, NewsHighlight]:
+    """Most-material recent headline per unique symbol, at background priority. Reads the 15-min news cache
+    that `compute_signals` just populated, so it stays within the brief's call budget and never bursts."""
+    highlights: dict[int, NewsHighlight] = {}
+    unique = {s.symbol.id: s.symbol for s in symbols}
+    with background_priority():
+        for symbol in unique.values():
+            try:
+                highlight = await news_service.top_material_headline(container.providers.news, symbol, now)
+            except (AppError, ProviderError) as exc:
+                logger.warning("Brief: no news for %s: %s", symbol.symbol, exc)
+                continue
+            if highlight is not None:
+                highlights[symbol.id] = highlight
+    return highlights
+
+
 async def ensure_market_context(container: Container) -> None:
     """Briefs describe the last session through the overview snapshot (regional ETFs, movers). Right after a
     restart it may be empty, so fetch just the missing quotes first, at background priority."""
@@ -65,10 +85,11 @@ async def generate_for(container: Container, users: Sequence[User], now: datetim
         per_user = {u.id: await brief_service.brief_symbols(session, container.cache, u) for u in users}
         all_symbols = [s for entries in per_user.values() for s in entries]
         signals = await compute_signals(container, all_symbols, now)
+        news = await collect_news(container, all_symbols, now)
         for user in users:
             try:
                 brief = await brief_service.build_brief(
-                    session, container.cache, writer, user, per_user[user.id], signals, now
+                    session, container.cache, writer, user, per_user[user.id], signals, now, news
                 )
             except Exception:
                 await session.rollback()

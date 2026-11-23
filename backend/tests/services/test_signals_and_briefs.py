@@ -169,6 +169,44 @@ async def test_build_brief_stores_items_and_replaces_same_day(
     assert DISCLAIMER in brief.summary_md and "APPLE INC" in brief.summary_md
 
 
+async def test_build_brief_includes_material_news(
+    session_factory: async_sessionmaker[AsyncSession], seeded: int
+) -> None:
+    from app.services.news_service import NewsHighlight
+
+    provider, cache = history_provider(), MemoryCache()
+    async with session_factory() as session:
+        aapl = await resolve_symbol(session, "AAPL")
+        record = await signal_service.get_or_compute(session, provider, provider, cache, aapl, NOW)
+        user = await session.get(User, seeded)
+        assert user is not None
+        highlight = NewsHighlight(
+            symbol="AAPL",
+            display_symbol="AAPL",
+            name="APPLE INC",
+            category="earnings",
+            category_label="Earnings",
+            materiality="high",
+            headline="Apple beats estimates on record revenue",
+            url="https://example.test/1",
+            published_at=NOW,
+        )
+        brief = await brief_service.build_brief(
+            session,
+            cache,
+            TemplateWriter(),
+            user,
+            [brief_service.BriefSymbol(aapl, "watchlist")],
+            {aapl.id: record},
+            NOW,
+            news={aapl.id: highlight},
+        )
+
+    assert brief.overnight["headlines"][0]["headline"] == "Apple beats estimates on record revenue"
+    assert "News that moved your stocks" in brief.summary_md
+    assert "Apple beats estimates on record revenue" in brief.summary_md
+
+
 async def test_outcomes_are_recorded_from_stored_bars(
     session_factory: async_sessionmaker[AsyncSession], seeded: int
 ) -> None:

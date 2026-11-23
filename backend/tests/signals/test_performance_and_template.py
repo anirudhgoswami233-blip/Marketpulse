@@ -58,5 +58,27 @@ def test_template_brief_has_reasons_and_disclaimer_and_no_commands() -> None:
 def test_template_handles_an_empty_watchlist() -> None:
     text = render("Bob", date(2026, 10, 20), [], [], [])
     assert "Add symbols to a watchlist" in text
+
+
+def test_template_includes_news_section() -> None:
+    from app.jobs.templates.brief import NewsLine
+
+    text = render(
+        "Alice",
+        date(2026, 10, 20),
+        [],
+        [],
+        [],
+        [
+            NewsLine(
+                symbol="AAPL", category_label="Earnings", materiality="high", headline="Apple beats estimates"
+            )
+        ],
+    )
+    assert "News that moved your stocks" in text
+    assert "Apple beats estimates" in text
+    assert "high impact" in text
+    # Descriptive only.
+    assert "buy" not in text.lower() and "sell" not in text.lower()
     assert "Regional market data wasn't available" in text
     assert DISCLAIMER in text
