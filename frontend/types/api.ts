@@ -197,6 +197,21 @@ export interface Peer {
   description: string;
 }
 
+export type NewsMateriality = "high" | "medium" | "low";
+
+export interface NewsImpact {
+  category: string;
+  category_label: string;
+  materiality: NewsMateriality;
+  tone: number; // -1 negative, 0 neutral, +1 positive
+}
+
+export interface NewsReaction {
+  ref_date: string;
+  next_date: string;
+  move_pct: DecimalString;
+}
+
 export interface NewsItem {
   id: string;
   headline: string;
@@ -207,6 +222,8 @@ export interface NewsItem {
   published_at: IsoDateTime;
   category: string | null;
   related_symbols: string[];
+  impact: NewsImpact;
+  reaction: NewsReaction | null;
 }
 
 export type ChartRange = "1D" | "1W" | "1M" | "1Y" | "5Y";

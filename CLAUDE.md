@@ -73,6 +73,12 @@ Update this section if commands change.
   Twelve Data credit/day per symbol.
 - Stock-page extras are free-tier Finnhub: `/stock/recommendation`, `/stock/earnings`, `/stock/peers` (24h
   cache). `/stock/price-target` is premium (not used).
+- **News impact & reaction** (`signals/news_impact.py`, `signals/reactions.py`, `services/news_service.py`):
+  each company-news headline is classified into an event category + materiality (pure keyword match, like
+  `sentiment.py` — descriptive labels only, never buy/sell) and tagged with the stock's own first-session
+  move after the headline, computed from stored daily bars (no extra provider call). Reactions are
+  best-effort (US equities only) and never break the news list. Stays within the `/stocks/{symbol}/news`
+  call budget.
 - **Forex & metals:** routed by exchange (`OANDA`, `FX`) through `ProviderRegistry.quotes_for()` to Twelve Data.
   The /forex board fetches only `base_pairs` (data/forex.json) and derives every cross, and stock-page quotes
   for those pairs come from the board snapshot when fresh (`quote_service.get_symbol_quote`). Twelve Data

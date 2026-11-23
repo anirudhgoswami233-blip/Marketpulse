@@ -3,7 +3,7 @@ from decimal import Decimal
 
 from pydantic import BaseModel
 
-from app.providers.base import Bar, MarketSession, Quote
+from app.providers.base import Bar, MarketSession, NewsItem, Quote
 
 
 class MarketStatusOut(BaseModel):
@@ -130,3 +130,23 @@ class ChartOut(BaseModel):
     currency: str | None
     timezone: str | None
     bars: list[Bar]
+
+
+class NewsImpactOut(BaseModel):
+    category: str  # NewsCategory value, e.g. "earnings"
+    category_label: str  # human label for the badge, e.g. "Earnings"
+    materiality: str  # "high" | "medium" | "low"
+    tone: int  # -1 negative, 0 neutral, +1 positive
+
+
+class NewsReactionOut(BaseModel):
+    """The stock's first-session move after the headline — a past move, not a forecast."""
+
+    ref_date: date
+    next_date: date
+    move_pct: Decimal
+
+
+class NewsItemOut(NewsItem):
+    impact: NewsImpactOut
+    reaction: NewsReactionOut | None = None

@@ -9,9 +9,9 @@ from app.core.cache import MemoryCache
 from app.core.errors import ProviderError
 from app.models import PriceBar, Symbol
 from app.providers.base import Bar, Interval, NewsItem, SymbolRecord
-from app.services import history_service, search_service, stock_service, symbol_directory
+from app.services import history_service, news_service, search_service, stock_service, symbol_directory
 from app.services.stock_service import ChartRange
-from tests.fakes import FakeProvider, daily_bar
+from tests.fakes import FakeProvider, daily_bar, news_item
 
 MON_MIDDAY = datetime(2026, 10, 19, 16, 0, tzinfo=UTC)  # 12:00 New York; last completed session = Fri 16th
 
@@ -180,3 +180,61 @@ async def test_news_sorted_newest_first_and_limited(aapl: Symbol) -> None:
     news = await stock_service.get_news(provider, aapl, date(2026, 10, 19))
     assert len(news.data) == stock_service.NEWS_LIMIT
     assert news.data[0].id == "29"
+
+
+async def test_news_is_classified_with_reaction(
+    session_factory: async_sessionmaker[AsyncSession], aapl: Symbol
+) -> None:
+    provider, cache = FakeProvider(), MemoryCache()
+    # Close jumps 100 -> 110 on Fri 16th, the session after the Thu 15th headline.
+    days = weekdays(date(2026, 10, 16), 6)
+    provider.bars = lambda *_: [daily_bar(d, close="110" if d == date(2026, 10, 16) else "100") for d in days]
+    provider.news = [
+        NewsItem(
+            id="earn",
+            headline="Apple beats estimates on record iPhone revenue",
+            summary="",
+            source="s",
+            url="u",
+            image_url=None,
+            published_at=datetime(2026, 10, 15, 21, 0, tzinfo=UTC),
+            category=None,
+            related_symbols=[],
+        ),
+        NewsItem(
+            id="today",  # published today: no completed following session yet
+            headline="Apple names new retail chief",
+            summary="",
+            source="s",
+            url="u",
+            image_url=None,
+            published_at=datetime(2026, 10, 19, 12, 0, tzinfo=UTC),
+            category=None,
+            related_symbols=[],
+        ),
+    ]
+    async with session_factory() as session:
+        out = await news_service.get_stock_news(session, provider, provider, cache, aapl, MON_MIDDAY)
+
+    by_id = {item.id: item for item in out.data}
+    earn = by_id["earn"]
+    assert earn.impact.category == "earnings"
+    assert earn.impact.materiality == "high"
+    assert earn.reaction is not None
+    assert earn.reaction.move_pct == Decimal("10.00")
+
+    today_item = by_id["today"]
+    assert today_item.impact.category == "other"
+    assert today_item.reaction is None
+
+
+async def test_news_reactions_best_effort_when_history_unavailable(
+    session_factory: async_sessionmaker[AsyncSession], aapl: Symbol
+) -> None:
+    provider, cache = FakeProvider(), MemoryCache()
+    provider.bars = ProviderError("fake", "no history")
+    provider.news = [news_item("Apple beats estimates", 0)]
+    async with session_factory() as session:
+        out = await news_service.get_stock_news(session, provider, provider, cache, aapl, MON_MIDDAY)
+    assert out.data[0].impact.category == "earnings"
+    assert out.data[0].reaction is None  # classification still works; reaction just omitted
