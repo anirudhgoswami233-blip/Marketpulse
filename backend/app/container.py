@@ -13,8 +13,10 @@ from typing import Any
 import httpx
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
+from app.core import llm
 from app.core.cache import CacheBackend, build_cache
 from app.core.config import Settings
+from app.core.llm import LLMClient
 from app.core.ratelimit import LimiterConfig, RateLimiter, build_limiter
 from app.core.security import TokenSigner, build_signer
 from app.db import create_engine, create_session_factory
@@ -50,6 +52,8 @@ class Container:
     signer: TokenSigner
     # None when FINNHUB_API_KEY is missing or streaming is disabled: pages then show REST quotes only.
     stream: FinnhubStream | None
+    # None when LLM_API_KEY is missing: briefs use templates and news uses the keyword classifier.
+    llm: LLMClient | None = None
     _clients: list[httpx.AsyncClient] = field(default_factory=list)
     # On-demand brief generation: users with a run in progress, and the tasks (kept so they aren't GC'd).
     briefs_in_progress: set[int] = field(default_factory=set)
@@ -174,6 +178,14 @@ def build_container(settings: Settings) -> Container:
             settings.finnhub_api_key.get_secret_value(), hub, max_symbols=settings.finnhub_ws_max_symbols
         )
 
+    llm_client: LLMClient | None = None
+    if settings.llm_api_key:
+        client = llm.build_client()
+        clients.append(client)
+        llm_client = LLMClient(client, settings.llm_api_key.get_secret_value(), settings.llm_model)
+    else:
+        logger.info("LLM_API_KEY is not set; briefs use templates and news uses the keyword classifier")
+
     engine = create_engine(settings.database_url)
     return Container(
         settings=settings,
@@ -185,5 +197,6 @@ def build_container(settings: Settings) -> Container:
         hub=hub,
         signer=build_signer(settings),
         stream=stream,
+        llm=llm_client,
         _clients=clients,
     )

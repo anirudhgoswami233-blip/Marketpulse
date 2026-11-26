@@ -1,7 +1,8 @@
 """Daily Brief assembly: who is due, which symbols, overnight summary, and the stored brief.
 
 Signals are computed once per symbol (shared across users) by the caller, at background priority, before
-briefs are built. Building a brief itself makes no external calls.
+briefs are built. Building a brief makes no market-data calls; the optional LLM prose rewrite (when
+`LLM_API_KEY` is set) is the only external call, and it falls back to the template on any failure.
 """
 
 from __future__ import annotations
@@ -17,12 +18,14 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.cache import CacheBackend
+from app.core.llm import LLMClient, LLMError
 from app.jobs.templates.brief import BriefItem, NewsLine, RegionMove, render
 from app.models import Brief, BriefSignal, SignalRecord, Symbol, User, Watchlist, WatchlistItem
 from app.services.markets_service import load_snapshot
 from app.services.news_service import NewsHighlight
 from app.services.reference_data import overview_config
 from app.services.search_service import price_available
+from app.signals.engine import DISCLAIMER
 
 logger = logging.getLogger(__name__)
 
@@ -137,24 +140,81 @@ class BriefContext:
     news: Sequence[NewsLine] = ()
 
 
-class BriefWriter(Protocol):
-    name: str
+@dataclass(frozen=True)
+class WrittenBrief:
+    text: str
+    generator: str  # "template" | "llm"
 
-    async def write(self, context: BriefContext) -> str: ...
+
+class BriefWriter(Protocol):
+    async def write(self, context: BriefContext) -> WrittenBrief: ...
+
+
+def _template_text(context: BriefContext) -> str:
+    return render(
+        context.user.display_name,
+        context.brief_date,
+        context.moves,
+        context.items,
+        context.unavailable,
+        context.news,
+    )
 
 
 class TemplateWriter:
-    name = "template"
+    async def write(self, context: BriefContext) -> WrittenBrief:
+        return WrittenBrief(_template_text(context), "template")
 
-    async def write(self, context: BriefContext) -> str:
-        return render(
-            context.user.display_name,
-            context.brief_date,
-            context.moves,
-            context.items,
-            context.unavailable,
-            context.news,
+
+BRIEF_SYSTEM = (
+    "You rewrite a pre-computed daily stock-market brief into clear, concise prose for a retail investor. "
+    "Use ONLY the facts provided. Never invent numbers, prices, signals, or news. Report the technical "
+    "signals as descriptive readings with their reasons; never tell the reader to buy, sell, or hold, and "
+    "never give a recommendation or price target. Keep it brief and skimmable with short Markdown sections. "
+    "End with this exact line and nothing after it: "
+    f"_{DISCLAIMER}_"
+)
+
+
+def _llm_prompt(context: BriefContext) -> str:
+    lines = [
+        f"Date: {context.brief_date:%A, %d %B %Y}",
+        f"Reader: {context.user.display_name}",
+        "",
+        "Overnight (regional ETF proxies):",
+    ]
+    lines += [f"- {m.region}: {m.detail}" for m in context.moves]
+    if context.news:
+        lines += ["", "Material news (descriptive labels only):"]
+        lines += [f"- {n.symbol} [{n.category_label}, {n.materiality}]: {n.headline}" for n in context.news]
+    lines += ["", "Signals (label, score, reasons — do not alter the numbers):"]
+    for item in context.items:
+        reasons = "; ".join(item.reasons) if item.reasons else "no indicator readings"
+        lines.append(
+            f"- {item.symbol} ({item.name}) [{item.source}]: {item.label} (score {item.score:+d}). {reasons}"
         )
+    if context.unavailable:
+        lines += ["", f"No signal today for: {', '.join(context.unavailable)}"]
+    return "\n".join(lines)
+
+
+def _ensure_disclaimer(text: str) -> str:
+    return text if DISCLAIMER in text else f"{text.rstrip()}\n\n---\n\n_{DISCLAIMER}_"
+
+
+class LLMWriter:
+    """Rewrites the computed brief into prose with the LLM; falls back to the template on any failure."""
+
+    def __init__(self, client: LLMClient) -> None:
+        self._client = client
+
+    async def write(self, context: BriefContext) -> WrittenBrief:
+        try:
+            text = await self._client.complete(BRIEF_SYSTEM, _llm_prompt(context), max_tokens=1400)
+        except LLMError as exc:
+            logger.warning("Brief LLM rewrite failed; using template: %s", exc)
+            return WrittenBrief(_template_text(context), "template")
+        return WrittenBrief(_ensure_disclaimer(text), "llm")
 
 
 async def build_brief(
@@ -204,14 +264,14 @@ async def build_brief(
         for h in highlights
     ]
     context = BriefContext(user, brief_date, moves, items, unavailable, news_lines)
-    summary = await writer.write(context)
+    written = await writer.write(context)
     await session.execute(delete(Brief).where(Brief.user_id == user.id, Brief.brief_date == brief_date))
     brief = Brief(
         user_id=user.id,
         brief_date=brief_date,
         generated_at=now,
-        generator=writer.name,
-        summary_md=summary,
+        generator=written.generator,
+        summary_md=written.text,
         overnight=overnight,
     )
     session.add(brief)

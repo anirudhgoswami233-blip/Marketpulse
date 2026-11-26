@@ -41,6 +41,8 @@ class Settings(BaseSettings):
     twelvedata_api_key: SecretStr | None = None
     fred_api_key: SecretStr | None = None
     llm_api_key: SecretStr | None = None
+    # Anthropic model for the optional LLM features (brief prose, news enrichment). Haiku is cheapest.
+    llm_model: str = "claude-haiku-5-5"
 
     database_url: str = f"sqlite+aiosqlite:///{(BACKEND_DIR / 'marketpulse.db').as_posix()}"
     # Empty means: use the in-process cache and rate limiter (single-process dev only).

@@ -87,7 +87,7 @@ Update this section if commands change.
 
 ## Secrets & config
 - All keys live in `.env` (gitignored). Keep `.env.example` updated with every new variable.
-- Vars: `FINNHUB_API_KEY`, `TWELVEDATA_API_KEY`, `FRED_API_KEY`, `DATABASE_URL`, `REDIS_URL`, `JWT_SECRET`, `CRON_SECRET`, `CORS_ORIGINS`/`CORS_ORIGIN_REGEX`, `ENV`, optional `LLM_API_KEY`, `SMTP_*` (+ `PUBLIC_APP_URL`, `MAIL_POSTAL_ADDRESS`, both required for email), `MIN_SIGNUP_AGE`. Frontend: `NEXT_PUBLIC_API_BASE_URL`, `API_BASE_URL`, `NEXT_PUBLIC_STREAM_BASE_URL`.
+- Vars: `FINNHUB_API_KEY`, `TWELVEDATA_API_KEY`, `FRED_API_KEY`, `DATABASE_URL`, `REDIS_URL`, `JWT_SECRET`, `CRON_SECRET`, `CORS_ORIGINS`/`CORS_ORIGIN_REGEX`, `ENV`, optional `LLM_API_KEY` (+ `LLM_MODEL`, Anthropic; brief prose + news enrichment, keyword/template fallback), `SMTP_*` (+ `PUBLIC_APP_URL`, `MAIL_POSTAL_ADDRESS`, both required for email), `MIN_SIGNUP_AGE`. Frontend: `NEXT_PUBLIC_API_BASE_URL`, `API_BASE_URL`, `NEXT_PUBLIC_STREAM_BASE_URL`.
 - **Deployment** (DEPLOY.md, render.yaml): Vercel proxies `/api/v1/*` to Render (`NEXT_PUBLIC_API_BASE_URL=/`) so the refresh cookie stays first-party; SSE goes direct. Migrations run in Render's start command. Render's free tier sleeps, so `.github/workflows/scheduled-jobs.yml` calls `/api/v1/internal/jobs/run` (Bearer `CRON_SECRET`) hourly; jobs run through `jobs/runner.run_exclusive`, shared with the in-process scheduler so they never overlap.
 - **Compliance:** signup requires a date of birth and is refused under `MIN_SIGNUP_AGE` (13, COPPA) with code
   `age_restricted`; the date is checked in `auth_service.validate_age` and in the form (`lib/age.ts`) and is
