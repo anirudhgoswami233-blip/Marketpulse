@@ -125,7 +125,11 @@ export function NewsList({ items }: { items: NewsItem[] }) {
         <li key={item.id} className="py-2 first:pt-0 last:pb-0">
           <a href={item.url} target="_blank" rel="noopener noreferrer" className="group block">
             <p className="text-[13px] font-medium text-primary group-hover:text-accent">{item.headline}</p>
-            {item.summary && <p className="mt-0.5 line-clamp-1 text-xs text-secondary">{item.summary}</p>}
+            {item.impact.why ? (
+              <p className="mt-0.5 text-xs text-secondary">Why it matters: {item.impact.why}</p>
+            ) : (
+              item.summary && <p className="mt-0.5 line-clamp-1 text-xs text-secondary">{item.summary}</p>
+            )}
             <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-2xs text-muted">
               <ImpactBadge impact={item.impact} />
               {item.reaction && <ReactionTag reaction={item.reaction} />}

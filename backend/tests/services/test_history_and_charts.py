@@ -2,6 +2,7 @@ from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 
 import pytest
+import respx
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -226,6 +227,39 @@ async def test_news_is_classified_with_reaction(
     today_item = by_id["today"]
     assert today_item.impact.category == "other"
     assert today_item.reaction is None
+
+
+async def test_news_llm_enrichment_sets_category_and_why(
+    session_factory: async_sessionmaker[AsyncSession], aapl: Symbol, respx_mock: "respx.MockRouter"
+) -> None:
+    import json
+
+    import httpx
+
+    from app.core.llm import ANTHROPIC_URL, LLMClient
+
+    provider, cache = FakeProvider(), MemoryCache()
+    provider.bars = lambda *_: []  # no reaction bars; focus on the classification merge
+    provider.news = [news_item("Apple opens a new store", 0)]  # keyword classifier -> other/low
+    respx_mock.post(ANTHROPIC_URL).respond(
+        json={
+            "content": [
+                {
+                    "type": "text",
+                    "text": json.dumps(
+                        [{"category": "earnings", "materiality": "high", "why": "Record quarterly revenue"}]
+                    ),
+                }
+            ]
+        }
+    )
+    llm = LLMClient(httpx.AsyncClient(), "k", "claude-haiku-5-5")
+    async with session_factory() as session:
+        out = await news_service.get_stock_news(session, provider, provider, cache, aapl, MON_MIDDAY, llm=llm)
+
+    item = out.data[0]
+    assert item.impact.category == "earnings" and item.impact.materiality == "high"
+    assert item.impact.why == "Record quarterly revenue"
 
 
 async def test_news_reactions_best_effort_when_history_unavailable(

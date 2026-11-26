@@ -137,6 +137,7 @@ class NewsImpactOut(BaseModel):
     category_label: str  # human label for the badge, e.g. "Earnings"
     materiality: str  # "high" | "medium" | "low"
     tone: int  # -1 negative, 0 neutral, +1 positive
+    why: str | None = None  # one-line LLM explanation; None when the keyword classifier was used
 
 
 class NewsReactionOut(BaseModel):

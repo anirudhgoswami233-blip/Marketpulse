@@ -202,9 +202,15 @@ def _bump(level: Materiality) -> Materiality:
     return _ORDER[min(_ORDER.index(level) + 1, len(_ORDER) - 1)]
 
 
-def classify(
-    headline: str, summary: str = "", *, price_change_pct: Decimal | None = None
-) -> NewsImpact:
+def bumped_materiality(base: Materiality, price_change_pct: Decimal | None) -> Materiality:
+    """Raise materiality one level when the stock's confirmed move says the market treated it as material.
+    Shared by the keyword classifier and the LLM-enriched path so both react the same way."""
+    if price_change_pct is not None and abs(price_change_pct) >= MOVE_THRESHOLD:
+        return _bump(base)
+    return base
+
+
+def classify(headline: str, summary: str = "", *, price_change_pct: Decimal | None = None) -> NewsImpact:
     text = f"{headline} {summary}".lower()
     category = NewsCategory.OTHER
     matched: tuple[str, ...] = ()
@@ -213,9 +219,7 @@ def classify(
         if hits:
             category, matched = cat, hits
             break
-    materiality = _BASE_MATERIALITY[category]
-    if price_change_pct is not None and abs(price_change_pct) >= MOVE_THRESHOLD:
-        materiality = _bump(materiality)
+    materiality = bumped_materiality(_BASE_MATERIALITY[category], price_change_pct)
     return NewsImpact(
         category=category, materiality=materiality, tone=headline_tone(headline), matched=matched
     )

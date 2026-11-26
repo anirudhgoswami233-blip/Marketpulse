@@ -17,12 +17,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.cache import CacheBackend, Fetched
 from app.core.errors import ProviderError
+from app.core.llm import LLMClient
 from app.models import Symbol
 from app.providers.base import MarketDataProvider, NewsItem
 from app.schemas.markets import NewsImpactOut, NewsItemOut, NewsReactionOut
-from app.services import history_service, stock_service
+from app.services import history_service, news_ai, stock_service
+from app.services.news_ai import LLMClass
 from app.signals import news_impact
-from app.signals.news_impact import Materiality
+from app.signals.news_impact import Materiality, NewsCategory
 from app.signals.reactions import NextSessionMove, next_session_move
 
 logger = logging.getLogger(__name__)
@@ -43,29 +45,47 @@ async def get_stock_news(
     cache: CacheBackend,
     symbol: Symbol,
     now: datetime | None = None,
+    llm: LLMClient | None = None,
 ) -> Fetched[list[NewsItemOut]]:
     now = now or datetime.now(UTC)
     fetched = await stock_service.get_news(news_provider, symbol, now.date())
     bars = await _reaction_bars(session, history_provider, cache, symbol, now)
+    # Optional LLM enrichment: one batched, cached call; empty (keyword classifier) when no key.
+    enriched = await news_ai.enrich(llm, cache, fetched.data) if llm is not None else {}
 
-    items = [_classify(item, bars) for item in fetched.data]
+    items = [_classify(item, bars, enriched.get(item.id)) for item in fetched.data]
     return Fetched[list[NewsItemOut]](
         data=items, as_of=fetched.as_of, source=fetched.source, stale=fetched.stale
     )
 
 
-def _classify(item: NewsItem, bars: list[tuple[date, Decimal]]) -> NewsItemOut:
+def _classify(
+    item: NewsItem, bars: list[tuple[date, Decimal]], llm_class: LLMClass | None = None
+) -> NewsItemOut:
     reaction: NextSessionMove | None = next_session_move(bars, item.published_at.date()) if bars else None
-    impact = news_impact.classify(
-        item.headline, item.summary, price_change_pct=reaction.move_pct if reaction else None
-    )
+    move = reaction.move_pct if reaction else None
+    impact = news_impact.classify(item.headline, item.summary, price_change_pct=move)
+
+    if llm_class is not None:
+        category = NewsCategory(llm_class.category)
+        category_value = category.value
+        category_label = news_impact.CATEGORY_LABELS[category]
+        materiality = news_impact.bumped_materiality(Materiality(llm_class.materiality), move).value
+        why = llm_class.why
+    else:
+        category_value = impact.category.value
+        category_label = news_impact.CATEGORY_LABELS[impact.category]
+        materiality = impact.materiality.value
+        why = None
+
     return NewsItemOut(
         **item.model_dump(),
         impact=NewsImpactOut(
-            category=impact.category.value,
-            category_label=news_impact.CATEGORY_LABELS[impact.category],
-            materiality=impact.materiality.value,
+            category=category_value,
+            category_label=category_label,
+            materiality=materiality,
             tone=impact.tone,
+            why=why,
         ),
         reaction=(
             NewsReactionOut(

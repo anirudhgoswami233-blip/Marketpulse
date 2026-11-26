@@ -78,7 +78,10 @@ Update this section if commands change.
   `sentiment.py` — descriptive labels only, never buy/sell) and tagged with the stock's own first-session
   move after the headline, computed from stored daily bars (no extra provider call). Reactions are
   best-effort (US equities only) and never break the news list. Stays within the `/stocks/{symbol}/news`
-  call budget.
+  call budget. When `LLM_API_KEY` is set, `services/news_ai.py` optionally enriches the stock-news
+  classification (category/materiality + a one-line "why") via one batched, per-headline-cached Anthropic
+  call, falling back to the keyword classifier on any failure. The Daily Brief prose is likewise rewritten
+  by the LLM when configured (`brief_service.LLMWriter`), else the template.
 - **Forex & metals:** routed by exchange (`OANDA`, `FX`) through `ProviderRegistry.quotes_for()` to Twelve Data.
   The /forex board fetches only `base_pairs` (data/forex.json) and derives every cross, and stock-page quotes
   for those pairs come from the board snapshot when fresh (`quote_service.get_symbol_quote`). Twelve Data
