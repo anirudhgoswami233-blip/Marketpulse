@@ -103,7 +103,7 @@ describe("empty states", () => {
       published_at: "2026-10-15T21:00:00Z",
       category: null,
       related_symbols: ["AAPL"],
-      impact: { category: "earnings", category_label: "Earnings", materiality: "high", tone: 1 },
+      impact: { category: "earnings", category_label: "Earnings", materiality: "high", tone: 1, why: null },
       reaction: { ref_date: "2026-10-15", next_date: "2026-10-16", move_pct: "10.00" },
     };
     render(<NewsList items={[item]} />);

@@ -93,7 +93,12 @@ async def peers(symbol: SymbolDep, container: ContainerDep, session: SessionDep)
 @router.get("/stocks/{symbol}/news", response_model=Fetched[list[NewsItemOut]])
 async def news(symbol: SymbolDep, container: ContainerDep, session: SessionDep) -> Fetched[list[NewsItemOut]]:
     return await news_service.get_stock_news(
-        session, container.providers.news, container.providers.history, container.cache, symbol
+        session,
+        container.providers.news,
+        container.providers.history,
+        container.cache,
+        symbol,
+        llm=container.llm,
     )
 
 

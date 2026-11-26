@@ -15,7 +15,7 @@ from app.core.errors import AppError, ProviderError
 from app.core.ratelimit import background_priority
 from app.models import SignalRecord, User
 from app.services import brief_service, markets_service, news_service, signal_service
-from app.services.brief_service import BriefSymbol, TemplateWriter
+from app.services.brief_service import BriefSymbol, BriefWriter, LLMWriter, TemplateWriter
 from app.services.email_service import email_configured, send_email, unsubscribe_url
 from app.services.news_service import NewsHighlight
 
@@ -78,7 +78,7 @@ async def ensure_market_context(container: Container) -> None:
 async def generate_for(container: Container, users: Sequence[User], now: datetime | None = None) -> int:
     """Build briefs for `users`. Returns how many were built."""
     now = now or datetime.now(UTC)
-    writer = TemplateWriter()
+    writer: BriefWriter = LLMWriter(container.llm) if container.llm is not None else TemplateWriter()
     built = 0
     await ensure_market_context(container)
     async with container.session_factory() as session:

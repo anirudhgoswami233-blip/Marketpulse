@@ -204,6 +204,7 @@ export interface NewsImpact {
   category_label: string;
   materiality: NewsMateriality;
   tone: number; // -1 negative, 0 neutral, +1 positive
+  why: string | null; // one-line LLM explanation; null when the keyword classifier was used
 }
 
 export interface NewsReaction {

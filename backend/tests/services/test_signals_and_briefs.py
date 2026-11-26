@@ -1,12 +1,15 @@
 from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal as D
 
+import httpx
 import pytest
+import respx
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.cache import MemoryCache
 from app.core.errors import ProviderUnavailable
+from app.core.llm import ANTHROPIC_URL, LLMClient
 from app.jobs import signal_outcomes
 from app.models import Brief, BriefSignal, PriceBar, SignalOutcome, SignalRecord, User
 from app.services import auth_service, brief_service, signal_service, symbol_directory, watchlist_service
@@ -99,6 +102,37 @@ def make_user(tz: str, brief_time: time = time(7, 30)) -> User:
     return User(
         email="x@example.com", password_hash="x", display_name="X", timezone=tz, brief_time=brief_time
     )
+
+
+def _brief_context() -> brief_service.BriefContext:
+    from app.jobs.templates.brief import BriefItem, RegionMove
+
+    return brief_service.BriefContext(
+        user=make_user("UTC"),
+        brief_date=date(2026, 10, 20),
+        moves=[RegionMove("Americas", 0.8, "SPY +0.80%")],
+        items=[BriefItem("AAPL", "APPLE INC", "watchlist", "Bullish signals", 40, ["RSI 28 oversold"])],
+        unavailable=[],
+        news=[],
+    )
+
+
+async def test_llm_writer_rewrites_and_keeps_disclaimer(respx_mock: "respx.MockRouter") -> None:
+    respx_mock.post(ANTHROPIC_URL).respond(
+        json={"content": [{"type": "text", "text": "# Market Brief\n\nApple's signals read bullish."}]}
+    )
+    client = LLMClient(httpx.AsyncClient(), "k", "claude-haiku-5-5")
+    written = await brief_service.LLMWriter(client).write(_brief_context())
+    assert written.generator == "llm"
+    assert DISCLAIMER in written.text  # appended when the model omits it
+
+
+async def test_llm_writer_falls_back_to_template_on_error(respx_mock: "respx.MockRouter") -> None:
+    respx_mock.post(ANTHROPIC_URL).respond(500, json={})
+    client = LLMClient(httpx.AsyncClient(), "k", "claude-haiku-5-5")
+    written = await brief_service.LLMWriter(client).write(_brief_context())
+    assert written.generator == "template"
+    assert DISCLAIMER in written.text and "Daily Market Brief" in written.text
 
 
 @pytest.mark.parametrize(
